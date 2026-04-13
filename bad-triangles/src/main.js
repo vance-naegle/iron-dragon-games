@@ -27,6 +27,11 @@ const input = { left: false, right: false, up: false, down: false, shoot: false 
 window.addEventListener('keydown', (e) => {
   SoundFX.resume();
   SoundFX.startAmbient();
+  if ((e.key === 'p' || e.key === 'P' || e.key === 'Escape') && gameStarted && !gameOver && !gameWin) {
+    paused = !paused;
+    return;
+  }
+  if (paused) return;
   if (e.key === 'ArrowLeft' || e.key === 'a') input.left = true;
   if (e.key === 'ArrowRight' || e.key === 'd') input.right = true;
   if (e.key === 'ArrowUp' || e.key === 'w') input.up = true;
@@ -148,7 +153,8 @@ class Enemy {
     this.manDecay   = 3.5;
 
     // shooting
-    this.shootTimer = 1.2 + Math.random() * 2.0;
+    // base shoot timer; increase for easier (level 1)
+    this.shootTimer = (level === 1 ? 1.8 : 1.2) + Math.random() * (level === 1 ? 3.0 : 2.0);
   }
   update(dt) {
     const groundY = vh - groundHeight;
@@ -196,12 +202,16 @@ class Enemy {
     // --- Shooting ---
     this.shootTimer -= dt;
     if (this.shootTimer <= 0) {
-      this.shootTimer = 1.0 + Math.random() * 2.2;
-      // aim roughly toward player with some spread
+      // reset timer (larger on low difficulty / early levels)
+      this.shootTimer = (level === 1 ? 1.6 : 1.0) + Math.random() * (level === 1 ? 3.0 : 2.2);
+      // never shoot if the enemy is behind the player's ship (player's back)
+      const isBehind = player.facing >= 0 ? (this.x < player.x) : (this.x > player.x);
+      if (isBehind) return;
+      // aim roughly toward player with some spread; reduce aggression on level 1
       const dx = player.x - this.x, dy = player.y - this.y;
-      const spread = 0.18;
+      const spread = level === 1 ? 0.28 : 0.18;
       const angle = Math.atan2(dy, dx) + (Math.random() - 0.5) * spread;
-      const spd = 320 + Math.random() * 80;
+      const spd = (level === 1 ? 240 : 320) + Math.random() * 80;
       enemyBullets.push(new EnemyBullet(this.x, this.y, Math.cos(angle) * spd, Math.sin(angle) * spd));
     }
 
@@ -348,6 +358,7 @@ class Explosion {
 
 let gameStarted = false;
 let gameOver = false;
+let paused = false;
 
 class Player {
   constructor() {
@@ -484,6 +495,34 @@ let score = 0;
 let enemyTimer = 0;
 let boss = null;
 let bossTimer = 18 + Math.random() * 14; // first boss in 18–32 s
+let level = 1;
+const MAX_LEVELS = 10;
+let gameWin = false;
+const powerups = [];
+let powerupTimer = 12 + Math.random() * 14;
+let levelComplete = false;
+
+// Level complete modal elements
+const lcModal = document.getElementById('level-complete');
+const lcTitle = document.getElementById('lc-title');
+const lcSub = document.getElementById('lc-sub');
+const lcContinue = document.getElementById('lc-continue');
+if (lcContinue) lcContinue.addEventListener('click', () => {
+  levelComplete = false;
+  if (lcModal) lcModal.classList.add('hidden');
+  // clear active hazards so the player resumes safely
+  enemies.length = 0; enemyBullets.length = 0; powerups.length = 0;
+  enemyTimer = 2.0;
+  bossTimer = 6 + Math.random() * 4;
+  player.invulnerable = 1.6;
+});
+
+function spawnExtraLife() {
+  const y = 40 + Math.random() * (vh - 120);
+  const x = vw + 60;
+  const vx = -100 - Math.random() * 60;
+  powerups.push({ x, y, vx, radius: 12, dead: false });
+}
 
 function spawnEnemy() { const y = 30 + Math.random() * (vh - 60); const x = vw + 40; const vx = -120 - Math.random() * 160; const vy = (Math.random() - 0.5) * 80; enemies.push(new Enemy(x, y, vx, vy)); }
 
@@ -513,7 +552,8 @@ class Boss {
     this.x      = vw + 80;
     this.y      = 80 + Math.random() * (vh * 0.5);
     this.radius = 48;
-    this.hp     = 5;
+    // make early boss easier on level 1
+    this.hp     = level === 1 ? 3 : 5;
     this.dead   = false;
 
     // passes: each pass = fly to left edge, then reverse back right, repeat
@@ -525,7 +565,7 @@ class Boss {
     this.yTimer    = 0;
 
     // shooting — fires a 3-bullet spread
-    this.shootTimer = 1.4;
+    this.shootTimer = level === 1 ? 2.4 : 1.4;
     this.warning    = true;  // show "BOSS!" banner briefly on entry
     this.warnTimer  = 2.5;
 
@@ -672,6 +712,8 @@ function rectCircleCollide(cx, cy, r, ox, oy, or) { const dx = cx - ox, dy = cy 
 function update(dt) {
   starfield.update(dt, 80);
   if (!gameStarted) return;
+  if (paused) return;
+  if (levelComplete) return;
   player.update(dt);
   if (input.shoot && player.canShoot()) player.shoot(bullets);
 
@@ -709,13 +751,45 @@ function update(dt) {
       player.destroy();
     }
   }
-  if (boss && boss.dead) { boss = null; bossTimer = 22 + Math.random() * 16; }
+  if (boss && boss.dead) {
+    // Player defeated the boss — award extra life if player survived and advance level
+    if (!player.dead && !gameOver && !gameWin) {
+      player.lives = Math.min(99, player.lives + 1); // reward: extra life for boss kill
+      score += 500;
+      level++;
+      if (level > MAX_LEVELS) {
+        gameWin = true;
+      } else {
+        // show level complete modal (previous level completed)
+        levelComplete = true;
+        if (lcTitle) lcTitle.textContent = `Level ${level - 1} Complete`;
+        if (lcSub) lcSub.textContent = `Continue to level ${level}?`;
+        if (lcModal) lcModal.classList.remove('hidden');
+      }
+    }
+    boss = null;
+    bossTimer = 22 + Math.random() * 16;
+  }
 
   // enemy bullet hits player
   for (let b of enemyBullets) {
     if (b.dead) continue;
     if (rectCircleCollide(b.x, b.y, b.radius, player.x, player.y, player.radius)) {
       b.dead = true; player.destroy();
+    }
+  }
+
+  // powerups update and pickup
+  for (let p of powerups) {
+    if (p.dead) continue;
+    p.x += p.vx * dt;
+    if (p.x < -80) p.dead = true;
+    if (rectCircleCollide(p.x, p.y, p.radius, player.x, player.y, player.radius)) {
+      p.dead = true;
+      player.lives = Math.min(99, player.lives + 1);
+      score += 250;
+      if (SoundFX.playPickup) SoundFX.playPickup();
+      explosions.push(new Explosion(player.x, player.y, ['#6ef','#aff','#fff'], 10));
     }
   }
 
@@ -763,10 +837,18 @@ function update(dt) {
   }
 
   enemyTimer -= dt;
-  if (enemyTimer <= 0) { spawnEnemy(); enemyTimer = 0.6 + Math.random() * 1.2; }
+  if (!gameWin && enemyTimer <= 0) {
+    spawnEnemy();
+    enemyTimer = (level === 1) ? 1.2 + Math.random() * 1.8 : 0.6 + Math.random() * 1.2;
+  }
   obstacleTimer -= dt;
   if (obstacleTimer <= 0) { spawnObstacle(); obstacleTimer = 1.2 + Math.random() * 2.6; }
-  if (!boss) { bossTimer -= dt; if (bossTimer <= 0) boss = new Boss(); }
+  if (!boss && !gameWin) { bossTimer -= dt; if (bossTimer <= 0) boss = new Boss(); }
+
+  // powerup spawning and cleanup
+  powerupTimer -= dt;
+  if (powerupTimer <= 0) { spawnExtraLife(); powerupTimer = 18 + Math.random() * 28; }
+  for (let i = powerups.length - 1; i >= 0; i--) if (powerups[i].dead) powerups.splice(i, 1);
 }
 
 function draw() {
@@ -815,6 +897,15 @@ function draw() {
   }
   for (let e of enemies) e.draw(ctx);
   if (boss) boss.draw(ctx);
+  // draw powerups
+  for (let p of powerups) {
+    ctx.save();
+    ctx.translate(p.x, p.y);
+    // simple life icon: green circle with plus
+    ctx.fillStyle = '#6ef'; ctx.beginPath(); ctx.arc(0, 0, p.radius, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#fff'; ctx.fillRect(-6, -2, 12, 4); ctx.fillRect(-2, -6, 4, 12);
+    ctx.restore();
+  }
   // thrust particles drawn before ship so they appear behind it
   for (const p of thrustParticles) {
     const t = Math.max(0, p.life);
@@ -834,6 +925,7 @@ function draw() {
   ctx.fillStyle = '#bfe8ff'; ctx.font = '18px system-ui,Segoe UI,Arial'; ctx.textAlign = 'left';
   ctx.fillText('Score: ' + score, 16, 28);
   ctx.fillText('Lives: ' + player.lives, 16, 52);
+  ctx.fillText('Level: ' + level, 16, 76);
   if (!isMobile) { ctx.textAlign = 'right'; ctx.fillText('Controls: Arrows/WASD, Space to shoot', vw - 16, 28); }
 
   // boss warning banner
@@ -853,6 +945,27 @@ function draw() {
     ctx.fillText('GAME OVER', vw / 2, vh / 2 - 10);
     ctx.font = '18px system-ui,Segoe UI,Arial';
     ctx.fillText(isMobile ? 'Tap to play again' : 'Reload the page to try again', vw / 2, vh / 2 + 24);
+  }
+
+  if (gameWin) {
+    ctx.fillStyle = '#c8f7c8'; ctx.font = '48px system-ui,Segoe UI,Arial'; ctx.textAlign = 'center';
+    ctx.fillText('YOU WIN!', vw / 2, vh / 2 - 10);
+    ctx.font = '18px system-ui,Segoe UI,Arial';
+    ctx.fillText('Thanks for playing', vw / 2, vh / 2 + 24);
+  }
+
+  if (paused) {
+    ctx.save();
+    ctx.fillStyle = 'rgba(6,20,39,0.65)';
+    ctx.fillRect(0, 0, vw, vh);
+    ctx.fillStyle = '#6ef';
+    ctx.font = 'bold 52px system-ui,Arial';
+    ctx.textAlign = 'center';
+    ctx.fillText('PAUSED', vw / 2, vh / 2 - 14);
+    ctx.font = '18px system-ui,Arial';
+    ctx.fillStyle = '#6ab';
+    ctx.fillText('Press P or Esc to resume', vw / 2, vh / 2 + 22);
+    ctx.restore();
   }
 
   drawTouchControls();

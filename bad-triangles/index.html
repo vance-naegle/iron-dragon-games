@@ -36,6 +36,18 @@
   </div>
   <div id="ad-bottom" class="ad-slot"></div>
 
+  <!-- LEVEL COMPLETE / NEXT LEVEL MODAL -->
+  <div id="level-complete" class="hidden">
+    <div id="level-complete-content">
+      <h2 id="lc-title">Level 1 Complete</h2>
+      <p id="lc-sub">Continue to level 2?</p>
+      <div id="lc-ad" class="ad-slot modal-ad"></div>
+      <div id="lc-actions">
+        <button id="lc-continue">Continue</button>
+      </div>
+    </div>
+  </div>
+
   <script>
   (function(){
     const ads = [
@@ -44,7 +56,7 @@
       { id:'cyberdyne',name:'Cyberdyne Systems',  tag:'Shaping Tomorrow, Today',     symbol:'◈' },
     ];
     // shuffle then assign, cycling if more slots than ads
-    const slots = ['ad-left','ad-right','ad-top','ad-bottom'];
+    const slots = ['ad-left','ad-right','ad-top','ad-bottom','lc-ad'];
     const shuffled = [...ads].sort(()=>Math.random()-0.5);
     slots.forEach((id, i) => {
       const ad = shuffled[i % shuffled.length];
