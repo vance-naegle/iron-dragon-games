@@ -1,0 +1,351 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Player Ship Samples</title>
+  <style>
+    html,body { margin:0; background:#061427; font-family:Segoe UI,Arial,sans-serif; color:#cfe8ff; }
+    h1 { text-align:center; padding:24px 0 4px; font-size:22px; letter-spacing:.1em; color:#6ef; }
+    p.sub { text-align:center; margin:0 0 28px; color:#6ab; font-size:13px; }
+    .grid { display:flex; flex-wrap:wrap; justify-content:center; gap:32px; padding:0 32px 48px; }
+    .card { background:rgba(255,255,255,0.04); border:1px solid rgba(102,238,255,0.15);
+            border-radius:10px; padding:20px 28px; text-align:center; width:200px; }
+    .card canvas { display:block; margin:0 auto 12px; }
+    .card h2 { margin:0 0 6px; font-size:15px; color:#6ef; }
+    .card p  { margin:0; font-size:12px; color:#6ab; line-height:1.5; }
+  </style>
+</head>
+<body>
+  <h1>Player Ship Designs</h1>
+  <p class="sub">All ships face right (flying direction). Tell me which one you want.</p>
+  <div class="grid" id="grid"></div>
+
+<script>
+const SIZE = 140;
+const CX = SIZE / 2, CY = SIZE / 2;
+
+const ships = [
+
+  {
+    name: '1 — Viper',
+    desc: 'Sleek needle fighter with swept delta wings and glowing cockpit',
+    draw(ctx) {
+      ctx.save(); ctx.translate(CX, CY);
+      // engine glow
+      const eg = ctx.createRadialGradient(-30, 0, 2, -30, 0, 18);
+      eg.addColorStop(0, 'rgba(0,180,255,0.8)'); eg.addColorStop(1, 'rgba(0,180,255,0)');
+      ctx.fillStyle = eg; ctx.beginPath(); ctx.arc(-30, 0, 18, 0, Math.PI*2); ctx.fill();
+
+      // upper delta wing
+      ctx.fillStyle = '#1a3a6a';
+      ctx.beginPath(); ctx.moveTo(10, -2); ctx.lineTo(-18, -26); ctx.lineTo(-32, -8); ctx.lineTo(-14, -2); ctx.closePath(); ctx.fill();
+      ctx.strokeStyle = '#4af'; ctx.lineWidth = 0.9; ctx.stroke();
+      // lower delta wing
+      ctx.beginPath(); ctx.moveTo(10, 2); ctx.lineTo(-18, 26); ctx.lineTo(-32, 8); ctx.lineTo(-14, 2); ctx.closePath(); ctx.fill(); ctx.stroke();
+
+      // engine nacelles
+      ctx.fillStyle = '#0a2a50';
+      ctx.beginPath(); ctx.roundRect(-36, -10, 12, 6, 2); ctx.fill();
+      ctx.beginPath(); ctx.roundRect(-36, 4, 12, 6, 2); ctx.fill();
+      ctx.fillStyle = '#0af';
+      ctx.fillRect(-36, -7, 3, 3); ctx.fillRect(-36, 7, 3, 3);
+
+      // main fuselage
+      const hg = ctx.createLinearGradient(-28, 0, 36, 0);
+      hg.addColorStop(0, '#0a2a50'); hg.addColorStop(0.5, '#1a4a8a'); hg.addColorStop(1, '#4af');
+      ctx.fillStyle = hg;
+      ctx.beginPath(); ctx.moveTo(36, 0); ctx.lineTo(22, -6); ctx.lineTo(-24, -7); ctx.lineTo(-28, 0); ctx.lineTo(-24, 7); ctx.lineTo(22, 6); ctx.closePath(); ctx.fill();
+      ctx.strokeStyle = '#4af'; ctx.lineWidth = 0.8; ctx.stroke();
+
+      // dorsal ridge
+      ctx.strokeStyle = 'rgba(100,200,255,0.4)'; ctx.lineWidth = 1.5;
+      ctx.beginPath(); ctx.moveTo(30, 0); ctx.lineTo(-20, 0); ctx.stroke();
+
+      // cockpit
+      const cg = ctx.createRadialGradient(14, -1, 1, 14, -1, 9);
+      cg.addColorStop(0, '#dff'); cg.addColorStop(0.4, '#4af'); cg.addColorStop(1, '#0a3a6a');
+      ctx.fillStyle = cg;
+      ctx.beginPath(); ctx.ellipse(14, 0, 9, 5, -0.15, 0, Math.PI*2); ctx.fill();
+      ctx.strokeStyle = '#8df'; ctx.lineWidth = 0.8; ctx.stroke();
+      ctx.restore();
+    }
+  },
+
+  {
+    name: '2 — Raptor',
+    desc: 'Aggressive twin-boom fighter with forward canards and dual cannons',
+    draw(ctx) {
+      ctx.save(); ctx.translate(CX, CY);
+
+      // engine glow x2
+      [-10, 10].forEach(dy => {
+        const eg = ctx.createRadialGradient(-28, dy, 1, -28, dy, 14);
+        eg.addColorStop(0, 'rgba(255,120,0,0.85)'); eg.addColorStop(1, 'rgba(255,60,0,0)');
+        ctx.fillStyle = eg; ctx.beginPath(); ctx.arc(-28, dy, 14, 0, Math.PI*2); ctx.fill();
+      });
+
+      // twin booms
+      ctx.fillStyle = '#2a1a0a';
+      ctx.beginPath(); ctx.roundRect(-30, -14, 38, 6, 2); ctx.fill();
+      ctx.beginPath(); ctx.roundRect(-30, 8, 38, 6, 2); ctx.fill();
+      ctx.strokeStyle = '#f84'; ctx.lineWidth = 0.7;
+      ctx.strokeRect(-30, -14, 38, 6); ctx.strokeRect(-30, 8, 38, 6);
+
+      // main wing
+      ctx.fillStyle = '#3a2010';
+      ctx.beginPath(); ctx.moveTo(14, -2); ctx.lineTo(-4, -2); ctx.lineTo(-20, -30); ctx.lineTo(-8, -14); ctx.closePath(); ctx.fill();
+      ctx.strokeStyle = '#f84'; ctx.lineWidth = 0.8; ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(14, 2); ctx.lineTo(-4, 2); ctx.lineTo(-20, 30); ctx.lineTo(-8, 14); ctx.closePath(); ctx.fill(); ctx.stroke();
+
+      // fuselage centre
+      const hg = ctx.createLinearGradient(-22, 0, 32, 0);
+      hg.addColorStop(0, '#2a1a0a'); hg.addColorStop(1, '#f84');
+      ctx.fillStyle = hg;
+      ctx.beginPath(); ctx.moveTo(32, 0); ctx.lineTo(18, -7); ctx.lineTo(-18, -8); ctx.lineTo(-22, 0); ctx.lineTo(-18, 8); ctx.lineTo(18, 7); ctx.closePath(); ctx.fill();
+      ctx.strokeStyle = '#f84'; ctx.lineWidth = 0.9; ctx.stroke();
+
+      // forward canards
+      ctx.fillStyle = '#4a2a0a';
+      ctx.beginPath(); ctx.moveTo(20, -5); ctx.lineTo(28, -14); ctx.lineTo(18, -8); ctx.closePath(); ctx.fill();
+      ctx.beginPath(); ctx.moveTo(20, 5); ctx.lineTo(28, 14); ctx.lineTo(18, 8); ctx.closePath(); ctx.fill();
+
+      // twin cannon barrels
+      ctx.fillStyle = '#1a0a00';
+      ctx.fillRect(28, -12, 18, 3); ctx.fillRect(28, 9, 18, 3);
+      ctx.fillStyle = '#f84';
+      ctx.fillRect(44, -12, 5, 3); ctx.fillRect(44, 9, 5, 3);
+
+      // cockpit
+      const cg = ctx.createRadialGradient(12, 0, 1, 12, 0, 8);
+      cg.addColorStop(0, '#ffe'); cg.addColorStop(0.5, '#f84'); cg.addColorStop(1, '#3a1a00');
+      ctx.fillStyle = cg;
+      ctx.beginPath(); ctx.ellipse(12, 0, 8, 5, 0, 0, Math.PI*2); ctx.fill();
+      ctx.restore();
+    }
+  },
+
+  {
+    name: '3 — Spectre',
+    desc: 'Stealth flying-wing silhouette with a pulsing violet core',
+    draw(ctx) {
+      ctx.save(); ctx.translate(CX, CY);
+
+      // engine glow (two subtle slits)
+      [-6, 6].forEach(dy => {
+        const eg = ctx.createRadialGradient(-22, dy, 1, -22, dy, 12);
+        eg.addColorStop(0, 'rgba(160,60,255,0.7)'); eg.addColorStop(1, 'rgba(80,0,160,0)');
+        ctx.fillStyle = eg; ctx.beginPath(); ctx.arc(-22, dy, 12, 0, Math.PI*2); ctx.fill();
+      });
+
+      // flying wing body — single flat shape
+      const wg = ctx.createLinearGradient(-30, 0, 28, 0);
+      wg.addColorStop(0, '#1a0a2a'); wg.addColorStop(0.6, '#3a1a6a'); wg.addColorStop(1, '#c080ff');
+      ctx.fillStyle = wg;
+      ctx.beginPath();
+      ctx.moveTo(28, 0);
+      ctx.lineTo(10, -5);
+      ctx.lineTo(-4, -5);
+      ctx.lineTo(-28, -34);
+      ctx.lineTo(-20, -4);
+      ctx.lineTo(-26, 0);
+      ctx.lineTo(-20, 4);
+      ctx.lineTo(-28, 34);
+      ctx.lineTo(-4, 5);
+      ctx.lineTo(10, 5);
+      ctx.closePath();
+      ctx.fill();
+      ctx.strokeStyle = '#c080ff'; ctx.lineWidth = 0.8; ctx.stroke();
+
+      // wing edge glow lines
+      ctx.strokeStyle = 'rgba(180,100,255,0.45)'; ctx.lineWidth = 1.2;
+      ctx.beginPath(); ctx.moveTo(20, -2); ctx.lineTo(-26, -32); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(20, 2); ctx.lineTo(-26, 32); ctx.stroke();
+
+      // stealth notch on leading edge
+      ctx.fillStyle = '#0a0018';
+      ctx.beginPath(); ctx.moveTo(28, 0); ctx.lineTo(18, -3); ctx.lineTo(14, 0); ctx.lineTo(18, 3); ctx.closePath(); ctx.fill();
+
+      // pulsing violet core
+      const cg = ctx.createRadialGradient(6, 0, 1, 6, 0, 9);
+      cg.addColorStop(0, '#fff'); cg.addColorStop(0.3, '#d090ff'); cg.addColorStop(1, '#2a0a4a');
+      ctx.fillStyle = cg;
+      ctx.beginPath(); ctx.ellipse(6, 0, 9, 4, 0, 0, Math.PI*2); ctx.fill();
+      ctx.restore();
+    }
+  },
+
+  {
+    name: '4 — Hornet',
+    desc: 'Stocky carrier-based fighter with thick wings and a bubble canopy',
+    draw(ctx) {
+      ctx.save(); ctx.translate(CX, CY);
+
+      // engine glow
+      const eg = ctx.createRadialGradient(-24, 0, 2, -24, 0, 20);
+      eg.addColorStop(0, 'rgba(80,220,80,0.8)'); eg.addColorStop(1, 'rgba(0,120,0,0)');
+      ctx.fillStyle = eg; ctx.beginPath(); ctx.arc(-24, 0, 20, 0, Math.PI*2); ctx.fill();
+
+      // thick swept wings
+      ctx.fillStyle = '#1a3a1a';
+      ctx.beginPath(); ctx.moveTo(12, -4); ctx.lineTo(-10, -4); ctx.lineTo(-26, -24); ctx.lineTo(-10, -18); ctx.lineTo(4, -8); ctx.closePath(); ctx.fill();
+      ctx.strokeStyle = '#4f4'; ctx.lineWidth = 0.9; ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(12, 4); ctx.lineTo(-10, 4); ctx.lineTo(-26, 24); ctx.lineTo(-10, 18); ctx.lineTo(4, 8); ctx.closePath(); ctx.fill(); ctx.stroke();
+
+      // twin tail fins
+      ctx.fillStyle = '#142814';
+      ctx.beginPath(); ctx.moveTo(-14, -4); ctx.lineTo(-28, -16); ctx.lineTo(-24, -4); ctx.closePath(); ctx.fill();
+      ctx.beginPath(); ctx.moveTo(-14, 4); ctx.lineTo(-28, 16); ctx.lineTo(-24, 4); ctx.closePath(); ctx.fill();
+
+      // fuselage — wider and stockier
+      const hg = ctx.createLinearGradient(-24, 0, 28, 0);
+      hg.addColorStop(0, '#142814'); hg.addColorStop(1, '#5aaa5a');
+      ctx.fillStyle = hg;
+      ctx.beginPath(); ctx.moveTo(28, 0); ctx.lineTo(18, -9); ctx.lineTo(-18, -10); ctx.lineTo(-24, 0); ctx.lineTo(-18, 10); ctx.lineTo(18, 9); ctx.closePath(); ctx.fill();
+      ctx.strokeStyle = '#4f4'; ctx.lineWidth = 0.9; ctx.stroke();
+
+      // belly hardpoints (missiles)
+      ctx.fillStyle = '#0a1a0a';
+      ctx.fillRect(-2, -14, 6, 4); ctx.fillRect(-2, 10, 6, 4);
+      ctx.fillStyle = '#8f8';
+      ctx.fillRect(4, -14, 8, 4); ctx.fillRect(4, 10, 8, 4);
+
+      // bubble canopy
+      const cg = ctx.createRadialGradient(10, -2, 1, 10, -2, 10);
+      cg.addColorStop(0, '#efffef'); cg.addColorStop(0.4, '#80e080'); cg.addColorStop(1, '#143a14');
+      ctx.fillStyle = cg;
+      ctx.beginPath(); ctx.ellipse(10, 0, 10, 7, 0, 0, Math.PI*2); ctx.fill();
+      ctx.strokeStyle = '#8f8'; ctx.lineWidth = 0.8; ctx.stroke();
+      // canopy frame line
+      ctx.strokeStyle = 'rgba(100,200,100,0.5)'; ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.moveTo(10, -7); ctx.lineTo(10, 7); ctx.stroke();
+      ctx.restore();
+    }
+  },
+
+  {
+    name: '5 — Phoenix',
+    desc: 'Ornate high-speed interceptor with swept-forward wings and a fiery trail slot',
+    draw(ctx) {
+      ctx.save(); ctx.translate(CX, CY);
+
+      // afterburner glow
+      const eg = ctx.createRadialGradient(-26, 0, 2, -26, 0, 22);
+      eg.addColorStop(0, 'rgba(255,200,60,0.9)'); eg.addColorStop(0.4, 'rgba(255,80,0,0.5)'); eg.addColorStop(1, 'rgba(255,40,0,0)');
+      ctx.fillStyle = eg; ctx.beginPath(); ctx.arc(-26, 0, 22, 0, Math.PI*2); ctx.fill();
+
+      // swept-forward upper wing
+      ctx.fillStyle = '#4a1800';
+      ctx.beginPath(); ctx.moveTo(4, -3); ctx.lineTo(-6, -3); ctx.lineTo(10, -28); ctx.lineTo(22, -14); ctx.lineTo(10, -6); ctx.closePath(); ctx.fill();
+      ctx.strokeStyle = '#ff8020'; ctx.lineWidth = 0.9; ctx.stroke();
+      // swept-forward lower wing
+      ctx.beginPath(); ctx.moveTo(4, 3); ctx.lineTo(-6, 3); ctx.lineTo(10, 28); ctx.lineTo(22, 14); ctx.lineTo(10, 6); ctx.closePath(); ctx.fill(); ctx.stroke();
+
+      // rear stabilisers
+      ctx.fillStyle = '#3a1000';
+      ctx.beginPath(); ctx.moveTo(-16, -4); ctx.lineTo(-28, -18); ctx.lineTo(-20, -5); ctx.closePath(); ctx.fill();
+      ctx.beginPath(); ctx.moveTo(-16, 4); ctx.lineTo(-28, 18); ctx.lineTo(-20, 5); ctx.closePath(); ctx.fill();
+
+      // fuselage
+      const hg = ctx.createLinearGradient(-26, 0, 34, 0);
+      hg.addColorStop(0, '#2a0800'); hg.addColorStop(0.5, '#8a2800'); hg.addColorStop(1, '#ff8020');
+      ctx.fillStyle = hg;
+      ctx.beginPath(); ctx.moveTo(34, 0); ctx.lineTo(20, -7); ctx.lineTo(-20, -8); ctx.lineTo(-26, 0); ctx.lineTo(-20, 8); ctx.lineTo(20, 7); ctx.closePath(); ctx.fill();
+      ctx.strokeStyle = '#ff8020'; ctx.lineWidth = 0.9; ctx.stroke();
+
+      // heat slot / intake on top
+      ctx.fillStyle = 'rgba(255,200,60,0.25)';
+      ctx.beginPath(); ctx.roundRect(-10, -8, 20, 3, 1); ctx.fill();
+      ctx.strokeStyle = 'rgba(255,200,60,0.6)'; ctx.lineWidth = 0.7;
+      ctx.strokeRect(-10, -8, 20, 3);
+
+      // nose spike
+      ctx.fillStyle = '#ff8020';
+      ctx.beginPath(); ctx.moveTo(34, 0); ctx.lineTo(26, -2); ctx.lineTo(44, 0); ctx.lineTo(26, 2); ctx.closePath(); ctx.fill();
+
+      // cockpit
+      const cg = ctx.createRadialGradient(14, -1, 1, 14, -1, 8);
+      cg.addColorStop(0, '#fff8d0'); cg.addColorStop(0.4, '#ffb040'); cg.addColorStop(1, '#3a1000');
+      ctx.fillStyle = cg;
+      ctx.beginPath(); ctx.ellipse(14, 0, 8, 5, -0.1, 0, Math.PI*2); ctx.fill();
+      ctx.strokeStyle = '#ffd080'; ctx.lineWidth = 0.8; ctx.stroke();
+      ctx.restore();
+    }
+  },
+
+  {
+    name: '6 — Wraith',
+    desc: 'Angular stealth gunship with asymmetric plating and a cold blue reactor',
+    draw(ctx) {
+      ctx.save(); ctx.translate(CX, CY);
+
+      // reactor glow (cold blue)
+      const rg = ctx.createRadialGradient(-18, 0, 2, -18, 0, 20);
+      rg.addColorStop(0, 'rgba(60,140,255,0.8)'); rg.addColorStop(1, 'rgba(0,40,120,0)');
+      ctx.fillStyle = rg; ctx.beginPath(); ctx.arc(-18, 0, 20, 0, Math.PI*2); ctx.fill();
+
+      // lower armour plate (asymmetric)
+      ctx.fillStyle = '#0a1428';
+      ctx.beginPath(); ctx.moveTo(16, 2); ctx.lineTo(-12, 2); ctx.lineTo(-30, 20); ctx.lineTo(-16, 12); ctx.lineTo(4, 10); ctx.closePath(); ctx.fill();
+      ctx.strokeStyle = '#3080ff'; ctx.lineWidth = 0.8; ctx.stroke();
+
+      // upper thin wing
+      ctx.fillStyle = '#0e1e3a';
+      ctx.beginPath(); ctx.moveTo(16, -2); ctx.lineTo(-8, -2); ctx.lineTo(-26, -18); ctx.lineTo(-12, -10); ctx.lineTo(2, -6); ctx.closePath(); ctx.fill();
+      ctx.strokeStyle = '#3080ff'; ctx.lineWidth = 0.8; ctx.stroke();
+
+      // main angular hull
+      const hg = ctx.createLinearGradient(-22, 0, 32, 0);
+      hg.addColorStop(0, '#060e20'); hg.addColorStop(0.6, '#0e2044'); hg.addColorStop(1, '#3080ff');
+      ctx.fillStyle = hg;
+      ctx.beginPath();
+      ctx.moveTo(32, 0);
+      ctx.lineTo(20, -8);
+      ctx.lineTo(0, -9);
+      ctx.lineTo(-10, -6);
+      ctx.lineTo(-22, -4);
+      ctx.lineTo(-22, 4);
+      ctx.lineTo(-10, 8);
+      ctx.lineTo(0, 11);
+      ctx.lineTo(20, 10);
+      ctx.closePath(); ctx.fill();
+      ctx.strokeStyle = '#3080ff'; ctx.lineWidth = 0.9; ctx.stroke();
+
+      // armour panel lines
+      ctx.strokeStyle = 'rgba(60,140,255,0.35)'; ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.moveTo(0, -9); ctx.lineTo(2, 11); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(-10, -6); ctx.lineTo(-8, 8); ctx.stroke();
+
+      // heavy cannon
+      ctx.fillStyle = '#060e20';
+      ctx.fillRect(20, -4, 20, 5);
+      ctx.fillStyle = '#3080ff';
+      ctx.fillRect(38, -4, 6, 5);
+
+      // reactor core
+      const cg = ctx.createRadialGradient(8, 0, 1, 8, 0, 7);
+      cg.addColorStop(0, '#e0f0ff'); cg.addColorStop(0.4, '#3080ff'); cg.addColorStop(1, '#06101e');
+      ctx.fillStyle = cg;
+      ctx.beginPath(); ctx.ellipse(8, 1, 7, 5, 0.15, 0, Math.PI*2); ctx.fill();
+      ctx.strokeStyle = '#80c0ff'; ctx.lineWidth = 0.7; ctx.stroke();
+      ctx.restore();
+    }
+  },
+
+];
+
+const grid = document.getElementById('grid');
+ships.forEach(s => {
+  const card = document.createElement('div');
+  card.className = 'card';
+  const cv = document.createElement('canvas');
+  cv.width = SIZE; cv.height = SIZE;
+  const ctx = cv.getContext('2d');
+  s.draw(ctx);
+  const h2 = document.createElement('h2'); h2.textContent = s.name;
+  const p = document.createElement('p'); p.textContent = s.desc;
+  card.append(cv, h2, p);
+  grid.appendChild(card);
+});
+</script>
+</body>
+</html>

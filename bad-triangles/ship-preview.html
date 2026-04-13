@@ -1,0 +1,215 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Alien Ship Samples</title>
+  <style>
+    html,body { margin:0; background:#061427; font-family:Segoe UI,Arial,sans-serif; color:#cfe8ff; }
+    h1 { text-align:center; padding:24px 0 4px; font-size:22px; letter-spacing:.1em; color:#6ef; }
+    p  { text-align:center; margin:0 0 24px; color:#6ab; font-size:13px; }
+    .grid { display:flex; flex-wrap:wrap; justify-content:center; gap:32px; padding:0 32px 48px; }
+    .card { background:rgba(255,255,255,0.04); border:1px solid rgba(102,238,255,0.15);
+            border-radius:10px; padding:20px 28px; text-align:center; width:180px; }
+    .card canvas { display:block; margin:0 auto 12px; }
+    .card h2 { margin:0 0 6px; font-size:15px; color:#6ef; }
+    .card p  { margin:0; font-size:12px; color:#6ab; line-height:1.5; }
+  </style>
+</head>
+<body>
+  <h1>Alien Ship Designs</h1>
+  <p>Tell me which number(s) you like and I'll swap it into the game.</p>
+  <div class="grid" id="grid"></div>
+
+<script>
+const SIZE = 120;
+const CX = SIZE / 2, CY = SIZE / 2;
+
+const ships = [
+
+  {
+    name: '1 — Saucer',
+    desc: 'Classic flying saucer with dome and glowing underbelly',
+    draw(ctx) {
+      // glow
+      const g = ctx.createRadialGradient(CX, CY+8, 4, CX, CY+8, 36);
+      g.addColorStop(0, 'rgba(160,60,255,0.55)');
+      g.addColorStop(1, 'rgba(160,60,255,0)');
+      ctx.fillStyle = g; ctx.beginPath(); ctx.ellipse(CX, CY+8, 36, 18, 0, 0, Math.PI*2); ctx.fill();
+      // body disc
+      ctx.fillStyle = '#7a6aaa';
+      ctx.beginPath(); ctx.ellipse(CX, CY+8, 30, 11, 0, 0, Math.PI*2); ctx.fill();
+      // rim highlight
+      ctx.strokeStyle = '#c8a0ff'; ctx.lineWidth = 1.5;
+      ctx.beginPath(); ctx.ellipse(CX, CY+8, 30, 11, 0, Math.PI, Math.PI*2); ctx.stroke();
+      // dome
+      const dg = ctx.createRadialGradient(CX-6, CY-4, 2, CX, CY, 16);
+      dg.addColorStop(0,'#ddf'); dg.addColorStop(1,'#6050a0');
+      ctx.fillStyle = dg;
+      ctx.beginPath(); ctx.ellipse(CX, CY, 16, 13, 0, Math.PI, Math.PI*2); ctx.fill();
+      ctx.strokeStyle='#c8a0ff'; ctx.lineWidth=1;
+      ctx.beginPath(); ctx.ellipse(CX,CY,16,13,0,Math.PI,Math.PI*2); ctx.stroke();
+      // port lights
+      [-16,-8,0,8,16].forEach((dx,i)=>{
+        ctx.fillStyle = i%2===0 ? '#f80' : '#0ef';
+        ctx.beginPath(); ctx.arc(CX+dx, CY+8, 2.5, 0, Math.PI*2); ctx.fill();
+      });
+    }
+  },
+
+  {
+    name: '2 — Mantis',
+    desc: 'Insectoid craft with swept-back wings and a fanged nose',
+    draw(ctx) {
+      ctx.save(); ctx.translate(CX, CY);
+      // engine glow
+      const eg = ctx.createRadialGradient(-28,0,2,-28,0,18);
+      eg.addColorStop(0,'rgba(0,220,180,0.7)'); eg.addColorStop(1,'rgba(0,220,180,0)');
+      ctx.fillStyle=eg; ctx.beginPath(); ctx.arc(-28,0,18,0,Math.PI*2); ctx.fill();
+      // left wing
+      ctx.fillStyle='#2a7a5a';
+      ctx.beginPath(); ctx.moveTo(0,-4); ctx.lineTo(-20,-28); ctx.lineTo(-36,-10); ctx.lineTo(-22,6); ctx.closePath(); ctx.fill();
+      ctx.strokeStyle='#5fffc0'; ctx.lineWidth=0.8; ctx.stroke();
+      // right wing
+      ctx.beginPath(); ctx.moveTo(0,4); ctx.lineTo(-20,28); ctx.lineTo(-36,10); ctx.lineTo(-22,-6); ctx.closePath(); ctx.fill(); ctx.stroke();
+      // body
+      const bg = ctx.createLinearGradient(-24,0,28,0);
+      bg.addColorStop(0,'#1a5a40'); bg.addColorStop(1,'#5fffc0');
+      ctx.fillStyle=bg;
+      ctx.beginPath(); ctx.moveTo(28,0); ctx.lineTo(10,-8); ctx.lineTo(-24,-6); ctx.lineTo(-24,6); ctx.lineTo(10,8); ctx.closePath(); ctx.fill();
+      // fangs
+      ctx.fillStyle='#5fffc0';
+      ctx.beginPath(); ctx.moveTo(28,0); ctx.lineTo(20,-5); ctx.lineTo(36,-8); ctx.closePath(); ctx.fill();
+      ctx.beginPath(); ctx.moveTo(28,0); ctx.lineTo(20,5); ctx.lineTo(36,8); ctx.closePath(); ctx.fill();
+      // cockpit
+      const cg = ctx.createRadialGradient(8,-1,1,8,-1,7);
+      cg.addColorStop(0,'#aff'); cg.addColorStop(1,'#0a6a50');
+      ctx.fillStyle=cg; ctx.beginPath(); ctx.ellipse(8,0,7,4,0,0,Math.PI*2); ctx.fill();
+      ctx.restore();
+    }
+  },
+
+  {
+    name: '3 — Crab',
+    desc: 'Squat armoured hull with claw arms and a glowing eye',
+    draw(ctx) {
+      ctx.save(); ctx.translate(CX, CY);
+      // thruster glow
+      const tg = ctx.createRadialGradient(-26,0,2,-26,0,14);
+      tg.addColorStop(0,'rgba(255,100,20,0.8)'); tg.addColorStop(1,'rgba(255,100,20,0)');
+      ctx.fillStyle=tg; ctx.beginPath(); ctx.arc(-26,0,14,0,Math.PI*2); ctx.fill();
+      // upper claw
+      ctx.strokeStyle='#c87a30'; ctx.lineWidth=4; ctx.lineCap='round';
+      ctx.beginPath(); ctx.moveTo(14,-8); ctx.lineTo(28,-20); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(28,-20); ctx.lineTo(36,-14); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(28,-20); ctx.lineTo(32,-26); ctx.stroke();
+      // lower claw
+      ctx.beginPath(); ctx.moveTo(14,8); ctx.lineTo(28,20); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(28,20); ctx.lineTo(36,14); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(28,20); ctx.lineTo(32,26); ctx.stroke();
+      // hull
+      ctx.fillStyle='#7a4a18';
+      ctx.beginPath(); ctx.moveTo(22,0); ctx.lineTo(14,-12); ctx.lineTo(-8,-14); ctx.lineTo(-26,-8); ctx.lineTo(-26,8); ctx.lineTo(-8,14); ctx.lineTo(14,12); ctx.closePath(); ctx.fill();
+      ctx.strokeStyle='#e09040'; ctx.lineWidth=1.2; ctx.stroke();
+      // armour plates
+      ctx.strokeStyle='#e09040'; ctx.lineWidth=0.8;
+      ctx.beginPath(); ctx.moveTo(-8,-14); ctx.lineTo(-4,0); ctx.lineTo(-8,14); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(8,-13); ctx.lineTo(6,0); ctx.lineTo(8,13); ctx.stroke();
+      // eye
+      const eyeg = ctx.createRadialGradient(10,0,1,10,0,6);
+      eyeg.addColorStop(0,'#ff4'); eyeg.addColorStop(0.5,'#f80'); eyeg.addColorStop(1,'#600');
+      ctx.fillStyle=eyeg; ctx.beginPath(); ctx.arc(10,0,6,0,Math.PI*2); ctx.fill();
+      ctx.restore();
+    }
+  },
+
+  {
+    name: '4 — Jellyfish',
+    desc: 'Translucent drifting organism with trailing tendrils',
+    draw(ctx) {
+      ctx.save(); ctx.translate(CX, CY-6);
+      // bell glow
+      const bg = ctx.createRadialGradient(0,-6,4,0,-6,28);
+      bg.addColorStop(0,'rgba(100,180,255,0.6)'); bg.addColorStop(1,'rgba(60,40,180,0)');
+      ctx.fillStyle=bg; ctx.beginPath(); ctx.ellipse(0,-4,28,22,0,0,Math.PI*2); ctx.fill();
+      // tendrils
+      ctx.strokeStyle='rgba(140,200,255,0.55)'; ctx.lineWidth=1.5; ctx.lineCap='round';
+      [[-16,10],[-8,10],[0,10],[8,10],[16,10]].forEach(([x,y],i)=>{
+        const amp = 5+i*1.5;
+        ctx.beginPath(); ctx.moveTo(x,y);
+        ctx.bezierCurveTo(x-amp,y+10, x+amp,y+20, x,y+28+i*3);
+        ctx.stroke();
+      });
+      // bell body
+      ctx.fillStyle='rgba(80,140,230,0.45)';
+      ctx.beginPath(); ctx.ellipse(0,-4,24,17,0,0,Math.PI*2); ctx.fill();
+      ctx.strokeStyle='rgba(180,220,255,0.7)'; ctx.lineWidth=1;
+      ctx.beginPath(); ctx.ellipse(0,-4,24,17,0,0,Math.PI*2); ctx.stroke();
+      // inner organs
+      ctx.fillStyle='rgba(180,100,255,0.5)';
+      ctx.beginPath(); ctx.ellipse(0,-2,10,8,0,0,Math.PI*2); ctx.fill();
+      // core pulse
+      const cg = ctx.createRadialGradient(0,-2,1,0,-2,6);
+      cg.addColorStop(0,'rgba(255,255,255,0.9)'); cg.addColorStop(1,'rgba(140,80,255,0)');
+      ctx.fillStyle=cg; ctx.beginPath(); ctx.arc(0,-2,6,0,Math.PI*2); ctx.fill();
+      ctx.restore();
+    }
+  },
+
+  {
+    name: '5 — Gunship',
+    desc: 'Heavy angular warship with twin cannons and engine pods',
+    draw(ctx) {
+      ctx.save(); ctx.translate(CX, CY);
+      // engine pod glow L
+      let pg = ctx.createRadialGradient(-22,-12,2,-22,-12,10);
+      pg.addColorStop(0,'rgba(255,140,0,0.8)'); pg.addColorStop(1,'rgba(255,140,0,0)');
+      ctx.fillStyle=pg; ctx.beginPath(); ctx.arc(-22,-12,10,0,Math.PI*2); ctx.fill();
+      // engine pod glow R
+      pg = ctx.createRadialGradient(-22,12,2,-22,12,10);
+      pg.addColorStop(0,'rgba(255,140,0,0.8)'); pg.addColorStop(1,'rgba(255,140,0,0)');
+      ctx.fillStyle=pg; ctx.beginPath(); ctx.arc(-22,12,10,0,Math.PI*2); ctx.fill();
+      // upper wing
+      ctx.fillStyle='#3a4a6a';
+      ctx.beginPath(); ctx.moveTo(6,-6); ctx.lineTo(-10,-6); ctx.lineTo(-28,-18); ctx.lineTo(-10,-20); ctx.lineTo(10,-10); ctx.closePath(); ctx.fill();
+      ctx.strokeStyle='#7aa0ff'; ctx.lineWidth=0.8; ctx.stroke();
+      // lower wing
+      ctx.beginPath(); ctx.moveTo(6,6); ctx.lineTo(-10,6); ctx.lineTo(-28,18); ctx.lineTo(-10,20); ctx.lineTo(10,10); ctx.closePath(); ctx.fill(); ctx.stroke();
+      // main body
+      const hg = ctx.createLinearGradient(-24,0,26,0);
+      hg.addColorStop(0,'#2a3a5a'); hg.addColorStop(1,'#6080c0');
+      ctx.fillStyle=hg;
+      ctx.beginPath(); ctx.moveTo(26,0); ctx.lineTo(14,-7); ctx.lineTo(-20,-8); ctx.lineTo(-24,0); ctx.lineTo(-20,8); ctx.lineTo(14,7); ctx.closePath(); ctx.fill();
+      ctx.strokeStyle='#7aa0ff'; ctx.lineWidth=1; ctx.stroke();
+      // twin cannons
+      ctx.fillStyle='#1a2a4a';
+      ctx.fillRect(18,-10,20,4); ctx.fillRect(18,6,20,4);
+      ctx.fillStyle='#7aa0ff';
+      ctx.fillRect(36,-10,6,4); ctx.fillRect(36,6,6,4);
+      // cockpit
+      const cg = ctx.createRadialGradient(10,0,1,10,0,7);
+      cg.addColorStop(0,'#cde'); cg.addColorStop(1,'#2a4a8a');
+      ctx.fillStyle=cg; ctx.beginPath(); ctx.ellipse(10,0,7,4,0,0,Math.PI*2); ctx.fill();
+      ctx.restore();
+    }
+  },
+
+];
+
+const grid = document.getElementById('grid');
+ships.forEach(s => {
+  const card = document.createElement('div');
+  card.className = 'card';
+  const cv = document.createElement('canvas');
+  cv.width = SIZE; cv.height = SIZE;
+  const ctx = cv.getContext('2d');
+  s.draw(ctx);
+  const h2 = document.createElement('h2');
+  h2.textContent = s.name;
+  const p = document.createElement('p');
+  p.textContent = s.desc;
+  card.append(cv, h2, p);
+  grid.appendChild(card);
+});
+</script>
+</body>
+</html>

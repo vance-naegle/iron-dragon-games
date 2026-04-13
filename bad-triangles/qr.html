@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Scan to Play</title>
+  <style>
+    body { margin: 0; background: #061427; display: flex; align-items: center; justify-content: center; min-height: 100vh; font-family: system-ui, Arial; color: #6ef; flex-direction: column; gap: 24px; }
+    #qr { background: #fff; padding: 18px; border-radius: 12px; }
+    p { margin: 0; font-size: 15px; letter-spacing: 0.06em; color: #6ab; }
+    a { color: #6ef; }
+  </style>
+</head>
+<body>
+  <h2 style="margin:0;letter-spacing:.12em">Bad Triangles — Mobile</h2>
+  <div id="qr"></div>
+  <p id="url-label"></p>
+  <p style="font-size:12px;opacity:.5">Make sure your phone is on the same Wi-Fi network.</p>
+
+  <script src="https://cdn.jsdelivr.net/npm/qrcode@1/build/qrcode.min.js"></script>
+  <script>
+    const host = location.hostname;
+    const port = location.port || (location.protocol === 'https:' ? 443 : 80);
+    const url  = `http://${host}:${port}/bad-triangles/index.html`;
+    document.getElementById('url-label').innerHTML = '<a href="' + url + '">' + url + '</a>';
+    QRCode.toCanvas(document.createElement('canvas'), url, { width: 240, margin: 1 }, (err, canvas) => {
+      if (err) { document.getElementById('qr').textContent = err.message; return; }
+      document.getElementById('qr').appendChild(canvas);
+    });
+  </script>
+</body>
+</html>
