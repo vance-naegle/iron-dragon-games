@@ -359,6 +359,79 @@ class Explosion {
 let gameStarted = false;
 let gameOver = false;
 let paused = false;
+let scoreSaved = false;
+
+// ── Local high scores (localStorage) ──────────────────────────
+const HS_KEY = 'badTriangles_scores';
+const HS_MAX = 10;
+
+function getHighScores() {
+  try { return JSON.parse(localStorage.getItem(HS_KEY)) || []; }
+  catch { return []; }
+}
+
+function saveHighScore(s, lvl) {
+  const scores = getHighScores();
+  const now = new Date();
+  const date = (now.getMonth() + 1) + '/' + now.getDate() + '/' + String(now.getFullYear()).slice(2);
+  scores.push({ score: s, level: lvl, date });
+  scores.sort((a, b) => b.score - a.score);
+  scores.splice(HS_MAX);
+  localStorage.setItem(HS_KEY, JSON.stringify(scores));
+  return scores.findIndex(e => e.score === s && e.date === date && e.level === lvl);
+}
+
+function drawHighScores(titleText, titleColor) {
+  if (!scoreSaved) {
+    const rank = saveHighScore(score, level);
+    scoreSaved = true;
+    drawHighScores._rank = rank;
+  }
+  const myRank = drawHighScores._rank ?? -1;
+  const scores = getHighScores();
+
+  // dark overlay
+  ctx.fillStyle = 'rgba(6,20,39,0.82)';
+  ctx.fillRect(0, 0, vw, vh);
+
+  const cx = vw / 2;
+  const fs = Math.max(11, Math.min(18, vw / 40));
+
+  // title
+  ctx.fillStyle = titleColor;
+  ctx.font = `bold ${Math.min(48, vw / 14)}px system-ui,Arial`;
+  ctx.textAlign = 'center';
+  ctx.fillText(titleText, cx, vh * 0.13);
+
+  // score this run
+  ctx.font = `${fs + 2}px system-ui,Arial`;
+  ctx.fillStyle = '#aef';
+  ctx.fillText(`Score: ${score.toLocaleString()}   Level: ${level}`, cx, vh * 0.22);
+
+  // high scores header
+  const tableTop = vh * 0.30;
+  const rowH = Math.min(32, (vh * 0.55) / Math.max(scores.length, 1));
+  ctx.font = `bold ${fs}px system-ui,Arial`;
+  ctx.fillStyle = '#6ab';
+  ctx.fillText('── HIGH SCORES ──', cx, tableTop);
+
+  scores.forEach((e, i) => {
+    const y = tableTop + (i + 1) * rowH + 6;
+    const isMe = i === myRank;
+    ctx.font = `${isMe ? 'bold ' : ''}${fs}px system-ui,Arial`;
+    ctx.fillStyle = isMe ? '#6ef' : (i < 3 ? '#ffd' : '#8ab');
+    const rank = `${i + 1}.`.padEnd(3);
+    ctx.fillText(
+      `${rank}  ${e.score.toLocaleString().padStart(7)}   Lvl ${e.level}   ${e.date}`,
+      cx, y
+    );
+  });
+
+  // replay prompt
+  ctx.font = `${fs}px system-ui,Arial`;
+  ctx.fillStyle = '#6ab';
+  ctx.fillText(isMobile ? 'Tap to play again' : 'Reload to play again', cx, vh * 0.92);
+}
 
 class Player {
   constructor() {
@@ -940,19 +1013,8 @@ function draw() {
     ctx.restore();
   }
 
-  if (gameOver) {
-    ctx.fillStyle = '#ffd'; ctx.font = '48px system-ui,Segoe UI,Arial'; ctx.textAlign = 'center';
-    ctx.fillText('GAME OVER', vw / 2, vh / 2 - 10);
-    ctx.font = '18px system-ui,Segoe UI,Arial';
-    ctx.fillText(isMobile ? 'Tap to play again' : 'Reload the page to try again', vw / 2, vh / 2 + 24);
-  }
-
-  if (gameWin) {
-    ctx.fillStyle = '#c8f7c8'; ctx.font = '48px system-ui,Segoe UI,Arial'; ctx.textAlign = 'center';
-    ctx.fillText('YOU WIN!', vw / 2, vh / 2 - 10);
-    ctx.font = '18px system-ui,Segoe UI,Arial';
-    ctx.fillText('Thanks for playing', vw / 2, vh / 2 + 24);
-  }
+  if (gameOver) drawHighScores('GAME OVER', '#ffd');
+  if (gameWin)  drawHighScores('YOU WIN!',  '#c8f7c8');
 
   if (paused) {
     ctx.save();
