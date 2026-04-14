@@ -7,6 +7,8 @@
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
+  <canvas id="bg"></canvas>
+
   <header>
     <h1>Iron Dragon Games</h1>
     <p class="tagline">Independent games by Iron Dragon Games</p>
@@ -16,8 +18,11 @@
     <div class="game-grid">
 
       <div class="game-card">
-        <div class="game-thumb bt-thumb">
-          <div class="thumb-art">▲</div>
+        <div class="game-thumb">
+          <video id="bt-preview" autoplay loop muted playsinline>
+            <source src="bad-triangles/preview.mp4" type="video/mp4">
+            <source src="bad-triangles/preview.webm" type="video/webm">
+          </video>
         </div>
         <div class="game-info">
           <h2>Bad Triangles</h2>
@@ -46,5 +51,45 @@
   <footer>
     <p>© 2026 Iron Dragon Games &nbsp;·&nbsp; <a href="bad-triangles/privacy.html">Privacy Policy</a></p>
   </footer>
+
+<script>
+(function () {
+  let last = 0;
+  const bg = document.getElementById('bg');
+  const bgCtx = bg.getContext('2d');
+  let bgW = 0, bgH = 0;
+  const bgStars = [];
+
+  function initBg() {
+    const dpr = window.devicePixelRatio || 1;
+    bgW = window.innerWidth; bgH = window.innerHeight;
+    bg.width = Math.floor(bgW * dpr); bg.height = Math.floor(bgH * dpr);
+    bg.style.width = bgW + 'px'; bg.style.height = bgH + 'px';
+    bgCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    if (!bgStars.length)
+      for (let i = 0; i < 400; i++)
+        bgStars.push({ x: Math.random() * bgW, y: Math.random() * bgH, z: 0.15 + Math.random() * 0.85 });
+  }
+
+  function loop(now) {
+    const dt = Math.min(0.05, (now - last) / 1000);
+    last = now;
+    bgCtx.fillStyle = '#061427';
+    bgCtx.fillRect(0, 0, bgW, bgH);
+    bgCtx.fillStyle = '#fff';
+    for (const s of bgStars) {
+      s.x -= 30 * s.z * dt;
+      if (s.x < 0) { s.x = bgW; s.y = Math.random() * bgH; }
+      bgCtx.globalAlpha = 0.2 + 0.5 * s.z;
+      bgCtx.fillRect(s.x, s.y, 1.5 * s.z, 1.5 * s.z);
+    }
+    bgCtx.globalAlpha = 1;
+    requestAnimationFrame(loop);
+  }
+
+  window.addEventListener('resize', initBg);
+  window.addEventListener('load', function () { initBg(); requestAnimationFrame(loop); });
+})();
+</script>
 </body>
 </html>
