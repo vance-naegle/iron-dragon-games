@@ -106,8 +106,8 @@ canvas.addEventListener('touchcancel', (e) => {
 
 class Starfield {
   constructor(count) { this.stars = []; for (let i = 0; i < count; i++) this.stars.push(this._makeStar()); }
-  _makeStar() { return { x: Math.random() * canvas.width, y: Math.random() * canvas.height, z: Math.random() * 1 + 0.2 }; }
-  update(dt, speed) { for (let s of this.stars) { s.x -= speed * s.z * dt; if (s.x < 0) { s.x = canvas.width; s.y = Math.random() * canvas.height; } } }
+  _makeStar() { return { x: Math.random() * vw, y: Math.random() * vh, z: Math.random() * 1 + 0.2 }; }
+  update(dt, speed) { for (let s of this.stars) { s.x -= speed * s.z * dt; if (s.x < 0) { s.x = vw; s.y = Math.random() * vh; } } }
   draw(ctx) { ctx.fillStyle = '#ffffff'; for (let s of this.stars) { ctx.globalAlpha = 0.6 * s.z; ctx.fillRect(s.x, s.y, 2 * s.z, 2 * s.z); } ctx.globalAlpha = 1; }
 }
 
