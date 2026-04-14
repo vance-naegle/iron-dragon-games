@@ -111,13 +111,36 @@ class Starfield {
   draw(ctx) { ctx.fillStyle = '#ffffff'; for (let s of this.stars) { ctx.globalAlpha = 0.6 * s.z; ctx.fillRect(s.x, s.y, 2 * s.z, 2 * s.z); } ctx.globalAlpha = 1; }
 }
 
-class Bullet { constructor(x, y, vx) { this.x = x; this.y = y; this.vx = vx; this.radius = 3; this.dead = false; } update(dt) { this.x += this.vx * dt; if (this.x > canvas.width + 50 || this.x < -50) this.dead = true; } draw(ctx) { ctx.fillStyle = '#ff6'; ctx.beginPath(); ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2); ctx.fill(); } }
+class Bullet {
+  constructor(x, y, vx) { this.x = x; this.y = y; this.vx = vx; this.radius = 3; this.dead = false; this.trailTime = 0; }
+  update(dt) {
+    this.x += this.vx * dt;
+    if (this.x > canvas.width + 50 || this.x < -50) this.dead = true;
+    if (!this.dead) {
+      this.trailTime += dt;
+      const interval = 0.012;
+      while (this.trailTime >= interval) {
+        this.trailTime -= interval;
+        bulletTrails.push({ x: this.x, y: this.y, life: 1.0, decay: 2.4, size: this.radius });
+      }
+    }
+  }
+  draw(ctx) { ctx.fillStyle = '#ff6'; ctx.beginPath(); ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2); ctx.fill(); }
+}
 
 class EnemyBullet {
-  constructor(x, y, vx, vy) { this.x = x; this.y = y; this.vx = vx; this.vy = vy; this.radius = 3; this.dead = false; }
+  constructor(x, y, vx, vy) { this.x = x; this.y = y; this.vx = vx; this.vy = vy; this.radius = 3; this.dead = false; this.trailTime = 0; }
   update(dt) {
     this.x += this.vx * dt; this.y += this.vy * dt;
     if (this.x < -60 || this.x > vw + 60 || this.y < -60 || this.y > vh + 60) this.dead = true;
+    if (!this.dead) {
+      this.trailTime += dt;
+      const interval = 0.014;
+      while (this.trailTime >= interval) {
+        this.trailTime -= interval;
+        enemyBulletTrails.push({ x: this.x, y: this.y, life: 1.0, decay: 1.6, size: this.radius });
+      }
+    }
   }
   draw(ctx) {
     ctx.save();
@@ -179,18 +202,10 @@ class Enemy {
     this.vy += this.manVy * dt;
     this.manVy *= 1 - this.manDecay * dt;
 
-    // Ground / building avoidance
+    // Ground avoidance
     const distToGround = (groundY - this.radius) - this.y;
     if (distToGround < clearance) {
       this.vy -= (1 - Math.max(0, distToGround) / clearance) * 8 * dt;
-    }
-    for (const o of buildings) {
-      if (this.x + this.radius < o.x - 40 || this.x - this.radius > o.x + o.w + 10) continue;
-      const oTop = groundY - o.h;
-      const distToTop = (this.y - this.radius) - oTop;
-      if (distToTop < clearance) {
-        this.vy -= (1 - Math.max(0, distToTop) / clearance) * 10 * dt;
-      }
     }
 
     // Damping and clamps
@@ -449,7 +464,7 @@ class Player {
     if (input.up)    this.vy = -acc;
     if (input.down)  this.vy =  acc;
     if (!this.dead) { this.x += this.vx * dt; this.y += this.vy * dt; }
-    this.y = Math.max(20, Math.min(vh - 20, this.y));
+    this.y = Math.max(laserTop + this.radius, Math.min(vh - groundHeight - this.radius, this.y));
     this.x = Math.max(20, Math.min(vw - 20, this.x));
     if (this.cooldown > 0) this.cooldown -= dt;
     if (this.invulnerable > 0) this.invulnerable -= dt;
@@ -559,11 +574,13 @@ const PLAYER_COLORS = ['#6ef', '#4df', '#aff', '#fff'];
 const starfield = new Starfield(160);
 const player = new Player();
 const bullets = [];
+const bulletTrails = [];
 const enemies = [];
 const explosions = [];
 const thrustParticles = [];
 const enemyThrust = [];
 const enemyBullets = [];
+const enemyBulletTrails = [];
 let score = 0;
 let enemyTimer = 0;
 let boss = null;
@@ -601,8 +618,9 @@ function spawnEnemy() { const y = 30 + Math.random() * (vh - 60); const x = vw +
 
 // ground and obstacles
 const groundHeight = 80;
-const mountains = [];  // background layer — no collision, slow scroll
-const buildings = [];  // foreground layer — collision, faster scroll
+const laserTop = 10;           // y position of top boundary laser
+const mountains = [];          // background layer — slow scroll
+const buildings = [];          // foreground hills — visual only, faster scroll
 let obstacleTimer = 0;
 
 function spawnObstacle() {
@@ -613,9 +631,9 @@ function spawnObstacle() {
     const h = 30 + Math.random() * 60;
     mountains.push({ x, w, h, vx: -55 - Math.random() * 30 });
   } else {
-    // building — faster foreground speed
-    const w = 40 + Math.random() * 60;
-    const h = 60 + Math.random() * 120;
+    // foreground hill — visual only, faster parallax
+    const w = 70 + Math.random() * 110;
+    const h = 14 + Math.random() * 28;
     buildings.push({ x, w, h, vx: -110 - Math.random() * 70 });
   }
 }
@@ -866,32 +884,9 @@ function update(dt) {
     }
   }
 
-  // building collisions — player
-  const groundY = vh - groundHeight;
-  for (let o of buildings) {
-    const closestX = Math.max(o.x, Math.min(player.x, o.x + o.w));
-    const closestY = Math.max(groundY - o.h, Math.min(player.y, groundY));
-    const dx = player.x - closestX, dy = player.y - closestY;
-    if (dx * dx + dy * dy <= player.radius * player.radius) { player.destroy(); }
-  }
-
-  // ground collision (touching land kills)
-  if (player.y + player.radius >= vh - groundHeight) {
-    player.destroy();
-  }
-
-  // building collisions — enemies die, buildings stay
-  for (let e of enemies) {
-    if (e.dead) continue;
-    for (let o of buildings) {
-      const closestX = Math.max(o.x, Math.min(e.x, o.x + o.w));
-      const closestY = Math.max(groundY - o.h, Math.min(e.y, groundY));
-      const dx = e.x - closestX, dy = e.y - closestY;
-      if (dx * dx + dy * dy <= e.radius * e.radius) {
-        e.dead = true; SoundFX.playExplosion(); explosions.push(new Explosion(e.x, e.y, ENEMY_COLORS, 10)); break;
-      }
-    }
-  }
+  // laser boundary collisions
+  if (player.y - player.radius <= laserTop) player.destroy();
+  if (player.y + player.radius >= vh - groundHeight) player.destroy();
 
   for (let ex of explosions) ex.update(dt);
   for (const p of thrustParticles) { p.x += p.vx * dt; p.y += p.vy * dt; p.vx *= 1 - 3.5 * dt; p.vy *= 1 - 3.5 * dt; p.life -= p.decay * dt; }
@@ -902,11 +897,15 @@ function update(dt) {
   for (let i = explosions.length - 1; i >= 0; i--) if (explosions[i].dead) explosions.splice(i, 1);
   for (let i = thrustParticles.length - 1; i >= 0; i--) if (thrustParticles[i].life <= 0) thrustParticles.splice(i, 1);
   for (let i = enemyThrust.length - 1; i >= 0; i--) if (enemyThrust[i].life <= 0) enemyThrust.splice(i, 1);
+  for (const p of bulletTrails) p.life -= p.decay * dt;
+  for (const p of enemyBulletTrails) p.life -= p.decay * dt;
+  for (let i = bulletTrails.length - 1; i >= 0; i--) if (bulletTrails[i].life <= 0) bulletTrails.splice(i, 1);
+  for (let i = enemyBulletTrails.length - 1; i >= 0; i--) if (enemyBulletTrails[i].life <= 0) enemyBulletTrails.splice(i, 1);
   for (let m of mountains) {
     if (m.x + m.w < -100) { m.x = vw + 60 + Math.random() * 300; m.w = 80 + Math.random() * 120; m.h = 30 + Math.random() * 60; }
   }
   for (let b of buildings) {
-    if (b.x + b.w < -100) { b.x = vw + 60 + Math.random() * 240; b.w = 40 + Math.random() * 60; b.h = 60 + Math.random() * 120; }
+    if (b.x + b.w < -100) { b.x = vw + 60 + Math.random() * 240; b.w = 70 + Math.random() * 110; b.h = 14 + Math.random() * 28; }
   }
 
   enemyTimer -= dt;
@@ -949,15 +948,49 @@ function draw() {
     ctx.fill();
   }
 
-  // buildings — foreground, collision active
+  // foreground hills — visual only
+  ctx.fillStyle = '#7a4a28';
   for (let b of buildings) {
-    ctx.fillStyle = '#8a6f5a';
-    ctx.fillRect(b.x, groundY - b.h, b.w, b.h);
-    ctx.fillStyle = '#b08972';
-    ctx.fillRect(b.x + 4, groundY - b.h + 6, b.w - 8, 6);
+    ctx.beginPath();
+    ctx.moveTo(b.x, groundY);
+    ctx.lineTo(b.x + b.w * 0.5, groundY - b.h);
+    ctx.lineTo(b.x + b.w, groundY);
+    ctx.closePath();
+    ctx.fill();
   }
 
+  // laser boundary beams
+  const pulse = 0.65 + 0.35 * Math.sin(Date.now() / 110);
+  ctx.save();
+  ctx.strokeStyle = '#00ff55';
+  // bottom laser
+  for (const [lw, alpha] of [[14, 0.10], [6, 0.30], [2, 0.80], [1, 1.0]]) {
+    ctx.lineWidth = lw; ctx.globalAlpha = alpha * pulse;
+    ctx.beginPath(); ctx.moveTo(0, groundY); ctx.lineTo(vw, groundY); ctx.stroke();
+  }
+  // top laser
+  for (const [lw, alpha] of [[14, 0.10], [6, 0.30], [2, 0.80], [1, 1.0]]) {
+    ctx.lineWidth = lw; ctx.globalAlpha = alpha * pulse;
+    ctx.beginPath(); ctx.moveTo(0, laserTop); ctx.lineTo(vw, laserTop); ctx.stroke();
+  }
+  ctx.restore();
+
+  for (const p of bulletTrails) {
+    const t = Math.max(0, p.life);
+    ctx.save(); ctx.globalAlpha = t * 0.85;
+    ctx.fillStyle = '#ff6';
+    ctx.beginPath(); ctx.arc(p.x, p.y, p.size * t, 0, Math.PI * 2); ctx.fill();
+    ctx.restore();
+  }
   for (let b of bullets) b.draw(ctx);
+
+  for (const p of enemyBulletTrails) {
+    const t = Math.max(0, p.life);
+    ctx.save(); ctx.globalAlpha = t * 0.85;
+    ctx.fillStyle = '#f55';
+    ctx.beginPath(); ctx.arc(p.x, p.y, p.size * t, 0, Math.PI * 2); ctx.fill();
+    ctx.restore();
+  }
   for (let b of enemyBullets) b.draw(ctx);
   // enemy thrust trails drawn before ships so they sit behind them
   for (const p of enemyThrust) {
