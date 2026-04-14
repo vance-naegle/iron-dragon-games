@@ -115,7 +115,7 @@ class Bullet {
   constructor(x, y, vx) { this.x = x; this.y = y; this.vx = vx; this.radius = 3; this.dead = false; this.trailTime = 0; }
   update(dt) {
     this.x += this.vx * dt;
-    if (this.x > canvas.width + 50 || this.x < -50) this.dead = true;
+    if (this.x > vw + 50 || this.x < -50) this.dead = true;
     if (!this.dead) {
       this.trailTime += dt;
       const interval = 0.012;
