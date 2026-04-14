@@ -788,7 +788,7 @@ function update(dt) {
       p.dead = true;
       player.lives = Math.min(99, player.lives + 1);
       score += 250;
-      if (SoundFX.playPickup) SoundFX.playPickup();
+      SoundFX.playPickup();
       explosions.push(new Explosion(player.x, player.y, ['#6ef','#aff','#fff'], 10));
     }
   }

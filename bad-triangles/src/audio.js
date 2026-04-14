@@ -248,5 +248,25 @@ const SoundFX = (() => {
     });
   }
 
-  return { resume, playShoot, playExplosion, startAmbient };
+  // --- Extra life pickup: ascending arpeggio ---
+  function playPickup() {
+    const c = getCtx();
+    if (c.state === 'suspended') c.resume();
+    const t = c.currentTime;
+    [440, 554.37, 659.25, 880].forEach((freq, i) => {
+      const osc  = c.createOscillator();
+      const gain = c.createGain();
+      osc.connect(gain);
+      gain.connect(c.destination);
+      osc.type = 'sine';
+      osc.frequency.value = freq;
+      const st = t + i * 0.07;
+      gain.gain.setValueAtTime(0.18, st);
+      gain.gain.exponentialRampToValueAtTime(0.001, st + 0.22);
+      osc.start(st);
+      osc.stop(st + 0.23);
+    });
+  }
+
+  return { resume, playShoot, playExplosion, startAmbient, playPickup };
 })();
