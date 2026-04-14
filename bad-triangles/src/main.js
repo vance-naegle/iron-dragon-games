@@ -623,18 +623,48 @@ const mountains = [];          // background layer — slow scroll
 const buildings = [];          // foreground hills — visual only, faster scroll
 let obstacleTimer = 0;
 
+function makeMountainPts() {
+  const segs = 8 + Math.floor(Math.random() * 5); // 8–12 ridge segments
+  const pts = [[0, 0]];
+  for (let i = 1; i < segs; i++) {
+    const t = i / segs;
+    const env = Math.sin(t * Math.PI);
+    const crag = (Math.random() - 0.42) * 0.65; // bias downward for crags
+    const fy = Math.max(0, env + env * crag);
+    // occasional x-shift creates overhangs / undercuts
+    const xShift = Math.random() < 0.22 ? (Math.random() - 0.5) * 0.11 : (Math.random() - 0.5) * 0.025;
+    pts.push([t + xShift, fy]);
+  }
+  pts.push([1, 0]);
+  return pts;
+}
+
+function makeHillPts() {
+  const segs = 5 + Math.floor(Math.random() * 4); // 5–8 facets
+  const pts = [[0, 0]];
+  for (let i = 1; i < segs; i++) {
+    const t = i / segs;
+    const env = Math.sin(t * Math.PI);
+    const facet = (Math.random() - 0.5) * 0.9;
+    const fy = Math.max(0, env * (0.55 + facet * 0.45));
+    pts.push([t, fy]);
+  }
+  pts.push([1, 0]);
+  return pts;
+}
+
 function spawnObstacle() {
   const x = vw + 40;
-  if (Math.random() < 0.55) {
+  if (Math.random() < 0.72) {
     // mountain — slower parallax speed
     const w = 80 + Math.random() * 120;
     const h = 30 + Math.random() * 60;
-    mountains.push({ x, w, h, vx: -55 - Math.random() * 30 });
+    mountains.push({ x, w, h, vx: -55 - Math.random() * 30, pts: makeMountainPts() });
   } else {
     // foreground hill — visual only, faster parallax
     const w = 70 + Math.random() * 110;
     const h = 14 + Math.random() * 28;
-    buildings.push({ x, w, h, vx: -110 - Math.random() * 70 });
+    buildings.push({ x, w, h, vx: -110 - Math.random() * 70, pts: makeHillPts() });
   }
 }
 
@@ -902,10 +932,10 @@ function update(dt) {
   for (let i = bulletTrails.length - 1; i >= 0; i--) if (bulletTrails[i].life <= 0) bulletTrails.splice(i, 1);
   for (let i = enemyBulletTrails.length - 1; i >= 0; i--) if (enemyBulletTrails[i].life <= 0) enemyBulletTrails.splice(i, 1);
   for (let m of mountains) {
-    if (m.x + m.w < -100) { m.x = vw + 60 + Math.random() * 300; m.w = 80 + Math.random() * 120; m.h = 30 + Math.random() * 60; }
+    if (m.x + m.w < -100) { m.x = vw + 60 + Math.random() * 300; m.w = 80 + Math.random() * 120; m.h = 30 + Math.random() * 60; m.pts = makeMountainPts(); }
   }
   for (let b of buildings) {
-    if (b.x + b.w < -100) { b.x = vw + 60 + Math.random() * 240; b.w = 70 + Math.random() * 110; b.h = 14 + Math.random() * 28; }
+    if (b.x + b.w < -100) { b.x = vw + 60 + Math.random() * 240; b.w = 70 + Math.random() * 110; b.h = 14 + Math.random() * 28; b.pts = makeHillPts(); }
   }
 
   enemyTimer -= dt;
@@ -914,7 +944,7 @@ function update(dt) {
     enemyTimer = (level === 1) ? 1.2 + Math.random() * 1.8 : 0.6 + Math.random() * 1.2;
   }
   obstacleTimer -= dt;
-  if (obstacleTimer <= 0) { spawnObstacle(); obstacleTimer = 1.2 + Math.random() * 2.6; }
+  if (obstacleTimer <= 0) { spawnObstacle(); obstacleTimer = 0.5 + Math.random() * 1.2; }
   if (!boss && !gameWin) { bossTimer -= dt; if (bossTimer <= 0) boss = new Boss(); }
 
   // powerup spawning and cleanup
@@ -932,31 +962,50 @@ function draw() {
   // ground
   const groundY = vh - groundHeight;
   const ggrad = ctx.createLinearGradient(0, groundY, 0, vh);
-  ggrad.addColorStop(0, '#3b6b3b');
-  ggrad.addColorStop(1, '#254926');
+  ggrad.addColorStop(0, '#4a4035');
+  ggrad.addColorStop(1, '#28231e');
   ctx.fillStyle = ggrad;
   ctx.fillRect(0, groundY, vw, groundHeight);
 
-  // mountains — background, no collision, slower parallax
-  ctx.fillStyle = '#6b8b58';
+  // ground title — static, centered in the strip
+  ctx.save();
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.font = `bold ${Math.min(52, groundHeight * 0.62)}px system-ui,Arial`;
+  ctx.fillStyle = 'rgba(180,160,130,0.22)';
+  ctx.fillText('BAD TRIANGLES', vw / 2, groundY + groundHeight / 2);
+  ctx.restore();
+
+  // mountains — background, craggy polygons
   for (let m of mountains) {
+    if (!m.pts) continue;
     ctx.beginPath();
-    ctx.moveTo(m.x, groundY);
-    ctx.lineTo(m.x + m.w / 2, groundY - m.h);
-    ctx.lineTo(m.x + m.w, groundY);
+    for (let i = 0; i < m.pts.length; i++) {
+      const px = m.x + m.pts[i][0] * m.w, py = groundY - m.pts[i][1] * m.h;
+      i === 0 ? ctx.moveTo(px, py) : ctx.lineTo(px, py);
+    }
     ctx.closePath();
+    ctx.fillStyle = '#6a6055';
     ctx.fill();
+    ctx.strokeStyle = '#3a3025';
+    ctx.lineWidth = 1;
+    ctx.stroke();
   }
 
-  // foreground hills — visual only
-  ctx.fillStyle = '#7a4a28';
+  // foreground hills — visual only, angular polygons
   for (let b of buildings) {
+    if (!b.pts) continue;
     ctx.beginPath();
-    ctx.moveTo(b.x, groundY);
-    ctx.lineTo(b.x + b.w * 0.5, groundY - b.h);
-    ctx.lineTo(b.x + b.w, groundY);
+    for (let i = 0; i < b.pts.length; i++) {
+      const px = b.x + b.pts[i][0] * b.w, py = groundY - b.pts[i][1] * b.h;
+      i === 0 ? ctx.moveTo(px, py) : ctx.lineTo(px, py);
+    }
     ctx.closePath();
+    ctx.fillStyle = '#584f45';
     ctx.fill();
+    ctx.strokeStyle = '#322d28';
+    ctx.lineWidth = 1;
+    ctx.stroke();
   }
 
   // laser boundary beams
