@@ -1,6 +1,7 @@
 const canvas = document.getElementById('game');
 const ctx = canvas.getContext('2d');
 let vw, vh;
+let scenery = null;
 
 function resize() {
   const dpr = window.devicePixelRatio || 1;
@@ -13,6 +14,7 @@ function resize() {
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
   vw = w;
   vh = h;
+  scenery = null; // rebuild at new viewport size
 }
 window.addEventListener('resize', resize);
 resize();
@@ -628,6 +630,74 @@ const ENEMY_COLORS  = ['#f55', '#f77', '#fa4', '#ff8'];
 const PLAYER_COLORS = ['#6ef', '#4df', '#aff', '#fff'];
 
 const starfield = new Starfield(160);
+
+// ── Deep background scenery (nebula + planet) ──────────────────
+function createScenery() {
+  const gy = vh - groundHeight; // horizon line
+  return {
+    // nebula blobs centred on the horizon — only top half visible above terrain
+    blobs: [
+      { x: vw * 0.50, y: gy, vx: -1.2, rx: 520, ry: 340, rgb: [85, 18, 155] },
+      { x: vw * 0.18, y: gy, vx: -0.8, rx: 400, ry: 260, rgb: [18, 55, 180] },
+      { x: vw * 0.85, y: gy, vx: -1.6, rx: 360, ry: 240, rgb: [145, 28, 105] },
+    ],
+    // planet centred on horizon — only top dome + rings visible above terrain
+    planet: { x: vw * 0.72, y: gy, vx: -10, r: 190 },
+  };
+}
+function updateScenery(dt) {
+  if (!scenery) scenery = createScenery();
+  for (const b of scenery.blobs) { b.x += b.vx * dt; if (b.x + b.rx < 0) b.x = vw + b.rx + Math.random() * 300; }
+  const p = scenery.planet; p.x += p.vx * dt; if (p.x + p.r * 3 < 0) p.x = vw + p.r * 3;
+}
+function drawNebula(ctx) {
+  if (!scenery) scenery = createScenery();
+  for (const b of scenery.blobs) {
+    ctx.save();
+    ctx.translate(b.x, b.y);
+    ctx.scale(1, b.ry / b.rx);
+    const g = ctx.createRadialGradient(0, 0, 0, 0, 0, b.rx);
+    g.addColorStop(0,    `rgba(${b.rgb},0.24)`);
+    g.addColorStop(0.38, `rgba(${b.rgb},0.13)`);
+    g.addColorStop(0.70, `rgba(${b.rgb},0.05)`);
+    g.addColorStop(1,    `rgba(${b.rgb},0)`);
+    ctx.fillStyle = g;
+    ctx.beginPath(); ctx.arc(0, 0, b.rx, 0, Math.PI * 2); ctx.fill();
+    ctx.restore();
+  }
+
+}
+function drawPlanet(ctx) {
+  if (!scenery) scenery = createScenery();
+  // planet — centre sits on the horizon so only the top dome is visible
+  const p = scenery.planet; const r = p.r;
+  ctx.save(); ctx.translate(p.x, p.y);
+
+  // ring — only draw the arc that sits above the horizon (y < 0 in planet space)
+  ctx.save();
+  ctx.beginPath(); ctx.rect(-r * 3, -r * 2.5, r * 6, r * 2.5); ctx.clip();
+  ctx.beginPath(); ctx.ellipse(0, 0, r * 2.6, r * 0.36, 0.18, 0, Math.PI * 2);
+  ctx.lineWidth = 28; ctx.strokeStyle = 'rgba(160,85,30,0.40)'; ctx.stroke();
+  ctx.lineWidth = 52; ctx.strokeStyle = 'rgba(120,60,18,0.15)'; ctx.stroke();
+  ctx.restore();
+
+  // planet dome — dark orange silhouette
+  ctx.beginPath(); ctx.arc(0, 0, r, 0, Math.PI * 2);
+  ctx.fillStyle = '#1a0d04'; ctx.fill();
+
+  // light sliver — warm amber crescent on right edge
+  ctx.save();
+  ctx.beginPath(); ctx.arc(0, 0, r, 0, Math.PI * 2); ctx.clip();
+  const sg = ctx.createRadialGradient(r * 1.74, 0, r * 0.26, r * 1.74, 0, r);
+  sg.addColorStop(0,    'rgba(255,175,80,0.92)');
+  sg.addColorStop(0.42, 'rgba(220,120,40,0.44)');
+  sg.addColorStop(1,    'rgba(160,70,15,0)');
+  ctx.fillStyle = sg;
+  ctx.beginPath(); ctx.arc(r * 1.74, 0, r, 0, Math.PI * 2); ctx.fill();
+  ctx.restore();
+
+  ctx.restore();
+}
 const player = new Player();
 const bullets = [];
 const bulletTrails = [];
@@ -679,8 +749,10 @@ function spawnEnemy() { const y = 30 + Math.random() * (vh - 60); const x = vw +
 // ground and obstacles
 const groundHeight = 80;
 const laserTop = 10;           // y position of top boundary laser
-const mountains = [];          // background layer — slow scroll
-const buildings = [];          // foreground hills — visual only, faster scroll
+const mountains  = [];   // layer 1 — farthest, slowest
+const mountains2 = [];   // layer 2 — mid-back
+const buildings2 = [];   // layer 3 — mid-front
+const buildings  = [];   // layer 4 — closest, fastest
 let obstacleTimer = 0;
 
 function makeMountainPts() {
@@ -713,18 +785,26 @@ function makeHillPts() {
   return pts;
 }
 
+function initTerrain() {
+  for (let x = -220; x < vw + 200; x += 130 + Math.random() * 90) {
+    mountains.push({  x,                        w: 85  + Math.random() * 125, h: 28 + Math.random() * 62, vx: -52  - Math.random() * 10, pts: makeMountainPts() });
+    mountains2.push({ x: x + Math.random() * 80, w: 80  + Math.random() * 115, h: 24 + Math.random() * 55, vx: -68  - Math.random() * 10, pts: makeMountainPts() });
+    buildings2.push({ x: x + Math.random() * 60, w: 75  + Math.random() * 110, h: 18 + Math.random() * 40, vx: -86  - Math.random() * 10, pts: makeHillPts() });
+    buildings.push({  x: x + Math.random() * 50, w: 70  + Math.random() * 100, h: 14 + Math.random() * 30, vx: -104 - Math.random() * 10, pts: makeHillPts() });
+  }
+}
+
 function spawnObstacle() {
   const x = vw + 40;
-  if (Math.random() < 0.72) {
-    // mountain — slower parallax speed
-    const w = 80 + Math.random() * 120;
-    const h = 30 + Math.random() * 60;
-    mountains.push({ x, w, h, vx: -70 - Math.random() * 15, pts: makeMountainPts() });
+  const r = Math.random();
+  if (r < 0.25) {
+    mountains.push({  x, w: 85 + Math.random() * 125, h: 28 + Math.random() * 62, vx: -52 - Math.random() * 10, pts: makeMountainPts() });
+  } else if (r < 0.52) {
+    mountains2.push({ x, w: 80 + Math.random() * 115, h: 24 + Math.random() * 55, vx: -68 - Math.random() * 10, pts: makeMountainPts() });
+  } else if (r < 0.76) {
+    buildings2.push({ x, w: 75 + Math.random() * 110, h: 18 + Math.random() * 40, vx: -86 - Math.random() * 10, pts: makeHillPts() });
   } else {
-    // foreground hill — visual only, faster parallax
-    const w = 70 + Math.random() * 110;
-    const h = 14 + Math.random() * 28;
-    buildings.push({ x, w, h, vx: -95 - Math.random() * 15, pts: makeHillPts() });
+    buildings.push({  x, w: 70 + Math.random() * 100, h: 14 + Math.random() * 30, vx: -104 - Math.random() * 10, pts: makeHillPts() });
   }
 }
 
@@ -915,6 +995,7 @@ function rectCircleCollide(cx, cy, r, ox, oy, or) { const dx = cx - ox, dy = cy 
 
 function update(dt) {
   starfield.update(dt, 80);
+  updateScenery(dt);
   if (!gameStarted) return;
   if (paused) return;
   if (levelComplete) return;
@@ -925,8 +1006,10 @@ function update(dt) {
   for (let b of enemyBullets) b.update(dt);
   for (let e of enemies) e.update(dt);
   if (boss) boss.update(dt);
-  for (let m of mountains) m.x += m.vx * dt;
-  for (let b of buildings) b.x += b.vx * dt;
+  for (let m of mountains)  m.x += m.vx * dt;
+  for (let m of mountains2) m.x += m.vx * dt;
+  for (let b of buildings2) b.x += b.vx * dt;
+  for (let b of buildings)  b.x += b.vx * dt;
   for (let c of comets) c.update(dt);
 
   for (let e of enemies) {
@@ -1035,12 +1118,10 @@ function update(dt) {
   for (let i = cometTrails.length - 1; i >= 0; i--) if (cometTrails[i].life <= 0) cometTrails.splice(i, 1);
   for (let i = comets.length - 1; i >= 0; i--) if (comets[i].dead) comets.splice(i, 1);
   for (let i = shockwaves.length - 1; i >= 0; i--) { shockwaves[i].life -= 1.4 * dt; if (shockwaves[i].life <= 0) shockwaves.splice(i, 1); }
-  for (let m of mountains) {
-    if (m.x + m.w < -100) { m.x = vw + 60 + Math.random() * 300; m.w = 80 + Math.random() * 120; m.h = 30 + Math.random() * 60; m.pts = makeMountainPts(); }
-  }
-  for (let b of buildings) {
-    if (b.x + b.w < -100) { b.x = vw + 60 + Math.random() * 240; b.w = 70 + Math.random() * 110; b.h = 14 + Math.random() * 28; b.pts = makeHillPts(); }
-  }
+  for (let m of mountains)  { if (m.x + m.w < -100) { m.x = vw + 60 + Math.random() * 300; m.w = 85 + Math.random() * 125; m.h = 28 + Math.random() * 62; m.pts = makeMountainPts(); } }
+  for (let m of mountains2) { if (m.x + m.w < -100) { m.x = vw + 60 + Math.random() * 280; m.w = 80 + Math.random() * 115; m.h = 24 + Math.random() * 55; m.pts = makeMountainPts(); } }
+  for (let b of buildings2) { if (b.x + b.w < -100) { b.x = vw + 60 + Math.random() * 260; b.w = 75 + Math.random() * 110; b.h = 18 + Math.random() * 40; b.pts = makeHillPts(); } }
+  for (let b of buildings)  { if (b.x + b.w < -100) { b.x = vw + 60 + Math.random() * 240; b.w = 70 + Math.random() * 100; b.h = 14 + Math.random() * 30; b.pts = makeHillPts(); } }
 
   enemyTimer -= dt;
   if (!gameWin && enemyTimer <= 0) {
@@ -1064,7 +1145,9 @@ function update(dt) {
 function draw() {
   ctx.fillStyle = '#061427';
   ctx.fillRect(0, 0, canvas.width, canvas.height);
+  drawNebula(ctx);
   starfield.draw(ctx);
+  drawPlanet(ctx);
   if (!gameStarted) return;
 
   // ground
@@ -1084,38 +1167,29 @@ function draw() {
   ctx.fillText('BAD TRIANGLES', vw / 2, groundY + groundHeight / 2);
   ctx.restore();
 
-  // mountains — background, craggy silhouettes
-  for (let m of mountains) {
-    if (!m.pts) continue;
-    const peakY = groundY - m.h;
-    const grad = ctx.createLinearGradient(0, peakY, 0, groundY);
-    grad.addColorStop(0, '#1a2e42');
-    grad.addColorStop(1, '#061427');
-    ctx.beginPath();
-    for (let i = 0; i < m.pts.length; i++) {
-      const px = m.x + m.pts[i][0] * m.w, py = groundY - m.pts[i][1] * m.h;
-      i === 0 ? ctx.moveTo(px, py) : ctx.lineTo(px, py);
+  // terrain layers — back to front, colours step gradually closer in value
+  const terrainLayers = [
+    { arr: mountains,  top: '#162234', bot: '#061427' },
+    { arr: mountains2, top: '#1e2d3e', bot: '#0c1824' },
+    { arr: buildings2, top: '#263748', bot: '#13202e' },
+    { arr: buildings,  top: '#2f4054', bot: '#1c2c3c' },
+  ];
+  for (const layer of terrainLayers) {
+    for (const obj of layer.arr) {
+      if (!obj.pts) continue;
+      const peakY = groundY - obj.h;
+      const g = ctx.createLinearGradient(0, peakY, 0, groundY);
+      g.addColorStop(0, layer.top);
+      g.addColorStop(1, layer.bot);
+      ctx.beginPath();
+      for (let i = 0; i < obj.pts.length; i++) {
+        const px = obj.x + obj.pts[i][0] * obj.w, py = groundY - obj.pts[i][1] * obj.h;
+        i === 0 ? ctx.moveTo(px, py) : ctx.lineTo(px, py);
+      }
+      ctx.closePath();
+      ctx.fillStyle = g;
+      ctx.fill();
     }
-    ctx.closePath();
-    ctx.fillStyle = grad;
-    ctx.fill();
-  }
-
-  // foreground hills — visual only, angular polygons
-  for (let b of buildings) {
-    if (!b.pts) continue;
-    const peakY = groundY - b.h;
-    const bgrad = ctx.createLinearGradient(0, peakY, 0, groundY);
-    bgrad.addColorStop(0, '#4a6070');
-    bgrad.addColorStop(1, '#2e3e4a');
-    ctx.beginPath();
-    for (let i = 0; i < b.pts.length; i++) {
-      const px = b.x + b.pts[i][0] * b.w, py = groundY - b.pts[i][1] * b.h;
-      i === 0 ? ctx.moveTo(px, py) : ctx.lineTo(px, py);
-    }
-    ctx.closePath();
-    ctx.fillStyle = bgrad;
-    ctx.fill();
   }
 
   // laser boundary beams
@@ -1312,6 +1386,7 @@ function drawTouchControls() {
 }
 
 document.getElementById('start-btn').addEventListener('click', () => {
+  initTerrain();
   gameStarted = true;
   SoundFX.resume();
   SoundFX.startAmbient();
