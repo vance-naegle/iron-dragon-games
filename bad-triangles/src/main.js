@@ -659,12 +659,12 @@ function spawnObstacle() {
     // mountain — slower parallax speed
     const w = 80 + Math.random() * 120;
     const h = 30 + Math.random() * 60;
-    mountains.push({ x, w, h, vx: -55 - Math.random() * 30, pts: makeMountainPts() });
+    mountains.push({ x, w, h, vx: -70 - Math.random() * 15, pts: makeMountainPts() });
   } else {
     // foreground hill — visual only, faster parallax
     const w = 70 + Math.random() * 110;
     const h = 14 + Math.random() * 28;
-    buildings.push({ x, w, h, vx: -110 - Math.random() * 70, pts: makeHillPts() });
+    buildings.push({ x, w, h, vx: -95 - Math.random() * 15, pts: makeHillPts() });
   }
 }
 
@@ -962,8 +962,8 @@ function draw() {
   // ground
   const groundY = vh - groundHeight;
   const ggrad = ctx.createLinearGradient(0, groundY, 0, vh);
-  ggrad.addColorStop(0, '#4a4035');
-  ggrad.addColorStop(1, '#28231e');
+  ggrad.addColorStop(0, '#2e3e4a');
+  ggrad.addColorStop(1, '#1a2530');
   ctx.fillStyle = ggrad;
   ctx.fillRect(0, groundY, vw, groundHeight);
 
@@ -972,40 +972,42 @@ function draw() {
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
   ctx.font = `bold ${Math.min(52, groundHeight * 0.62)}px system-ui,Arial`;
-  ctx.fillStyle = 'rgba(180,160,130,0.22)';
+  ctx.fillStyle = 'rgba(120,160,190,0.18)';
   ctx.fillText('BAD TRIANGLES', vw / 2, groundY + groundHeight / 2);
   ctx.restore();
 
-  // mountains — background, craggy polygons
+  // mountains — background, craggy silhouettes
   for (let m of mountains) {
     if (!m.pts) continue;
+    const peakY = groundY - m.h;
+    const grad = ctx.createLinearGradient(0, peakY, 0, groundY);
+    grad.addColorStop(0, '#1a2e42');
+    grad.addColorStop(1, '#061427');
     ctx.beginPath();
     for (let i = 0; i < m.pts.length; i++) {
       const px = m.x + m.pts[i][0] * m.w, py = groundY - m.pts[i][1] * m.h;
       i === 0 ? ctx.moveTo(px, py) : ctx.lineTo(px, py);
     }
     ctx.closePath();
-    ctx.fillStyle = '#6a6055';
+    ctx.fillStyle = grad;
     ctx.fill();
-    ctx.strokeStyle = '#3a3025';
-    ctx.lineWidth = 1;
-    ctx.stroke();
   }
 
   // foreground hills — visual only, angular polygons
   for (let b of buildings) {
     if (!b.pts) continue;
+    const peakY = groundY - b.h;
+    const bgrad = ctx.createLinearGradient(0, peakY, 0, groundY);
+    bgrad.addColorStop(0, '#4a6070');
+    bgrad.addColorStop(1, '#2e3e4a');
     ctx.beginPath();
     for (let i = 0; i < b.pts.length; i++) {
       const px = b.x + b.pts[i][0] * b.w, py = groundY - b.pts[i][1] * b.h;
       i === 0 ? ctx.moveTo(px, py) : ctx.lineTo(px, py);
     }
     ctx.closePath();
-    ctx.fillStyle = '#584f45';
+    ctx.fillStyle = bgrad;
     ctx.fill();
-    ctx.strokeStyle = '#322d28';
-    ctx.lineWidth = 1;
-    ctx.stroke();
   }
 
   // laser boundary beams
