@@ -683,6 +683,65 @@ function drawPlanet(ctx) {
   ctx.drawImage(planetImg, ix, iy, drawW, drawH);
   ctx.restore();
 }
+// ── Asteroid field — background decoration, no collision ───────
+const asteroidField = [];
+const ASTEROID_COLORS = ['#2a1a10','#1a1520','#2e1c12','#1e1828','#231510','#1c1a2a','#321e14','#16141e'];
+
+function makeAsteroidPts(r) {
+  const segs = 7 + Math.floor(Math.random() * 5);
+  const pts = [];
+  for (let i = 0; i < segs; i++) {
+    const a = (i / segs) * Math.PI * 2;
+    const d = r * (0.55 + Math.random() * 0.5);
+    pts.push([Math.cos(a) * d, Math.sin(a) * d]);
+  }
+  return pts;
+}
+function initAsteroids() {
+  for (let i = 0; i < 60; i++) {
+    const r = 4 + Math.pow(Math.random(), 1.8) * 80; // bias toward small, occasional huge
+    const speedScale = 1 - (r / 90);                  // big = slow, small = fast
+    asteroidField.push({
+      x: Math.random() * vw,
+      y: 20 + Math.random() * (vh - groundHeight - 40),
+      vx: -(12 + speedScale * 130),
+      vy: (Math.random() - 0.5) * (20 + speedScale * 60),
+      spin: (Math.random() - 0.5) * (0.4 + speedScale * 2.5),
+      angle: Math.random() * Math.PI * 2,
+      r, pts: makeAsteroidPts(r),
+      color: ASTEROID_COLORS[Math.floor(Math.random() * ASTEROID_COLORS.length)],
+      alpha: 1.0,
+    });
+  }
+}
+function updateAsteroids(dt) {
+  if (asteroidField.length === 0) initAsteroids();
+  const skyBottom = vh - groundHeight - 20;
+  for (const a of asteroidField) {
+    a.x += a.vx * dt;
+    a.y += a.vy * dt;
+    a.angle += a.spin * dt;
+    if (a.x + a.r < 0) { const sc = 1 - (a.r / 90); a.x = vw + a.r + Math.random() * 200; a.y = 20 + Math.random() * (skyBottom - 20); a.vx = -(12 + sc * 130); a.vy = (Math.random() - 0.5) * (20 + sc * 60); }
+    if (a.y - a.r < 20) { a.vy = Math.abs(a.vy); }
+    if (a.y + a.r > skyBottom) { a.vy = -Math.abs(a.vy); }
+  }
+}
+function drawAsteroids(ctx) {
+  for (const a of asteroidField) {
+    ctx.save();
+    ctx.globalAlpha = a.alpha;
+    ctx.translate(a.x, a.y);
+    ctx.rotate(a.angle);
+    ctx.beginPath();
+    ctx.moveTo(a.pts[0][0], a.pts[0][1]);
+    for (let i = 1; i < a.pts.length; i++) ctx.lineTo(a.pts[i][0], a.pts[i][1]);
+    ctx.closePath();
+    ctx.fillStyle = a.color;
+    ctx.fill();
+    ctx.restore();
+  }
+}
+
 const player = new Player();
 const bullets = [];
 const bulletTrails = [];
@@ -981,6 +1040,7 @@ function rectCircleCollide(cx, cy, r, ox, oy, or) { const dx = cx - ox, dy = cy 
 function update(dt) {
   starfield.update(dt, 80);
   updateScenery(dt);
+  updateAsteroids(dt);
   if (!gameStarted) return;
   if (paused) return;
   if (levelComplete) return;
@@ -1133,6 +1193,7 @@ function draw() {
   drawNebula(ctx);
   starfield.draw(ctx);
   drawPlanet(ctx);
+  drawAsteroids(ctx);
   if (!gameStarted) return;
 
   // ground
