@@ -2,6 +2,8 @@ const canvas = document.getElementById('game');
 const ctx = canvas.getContext('2d');
 let vw, vh;
 let scenery = null;
+const planetImg = new Image();
+planetImg.src = 'assets/planet_02.png';
 
 function resize() {
   const dpr = window.devicePixelRatio || 1;
@@ -668,34 +670,17 @@ function drawNebula(ctx) {
 
 }
 function drawPlanet(ctx) {
-  if (!scenery) scenery = createScenery();
-  // planet — centre sits on the horizon so only the top dome is visible
-  const p = scenery.planet; const r = p.r;
-  ctx.save(); ctx.translate(p.x, p.y);
-
-  // ring — only draw the arc that sits above the horizon (y < 0 in planet space)
+  if (!scenery || !planetImg.complete || !planetImg.naturalWidth) return;
+  const p = scenery.planet;
+  // Scale image so its height spans the desired diameter; width preserves aspect ratio
+  const drawH = p.r * 2.4;
+  const drawW = drawH * (planetImg.naturalWidth / planetImg.naturalHeight);
+  // Centre image on the horizon line — top half visible above terrain, bottom covered by ground strip
+  const ix = p.x - drawW / 2;
+  const iy = p.y - drawH / 2;
   ctx.save();
-  ctx.beginPath(); ctx.rect(-r * 3, -r * 2.5, r * 6, r * 2.5); ctx.clip();
-  ctx.beginPath(); ctx.ellipse(0, 0, r * 2.6, r * 0.36, 0.18, 0, Math.PI * 2);
-  ctx.lineWidth = 28; ctx.strokeStyle = 'rgba(160,85,30,0.40)'; ctx.stroke();
-  ctx.lineWidth = 52; ctx.strokeStyle = 'rgba(120,60,18,0.15)'; ctx.stroke();
-  ctx.restore();
-
-  // planet dome — dark orange silhouette
-  ctx.beginPath(); ctx.arc(0, 0, r, 0, Math.PI * 2);
-  ctx.fillStyle = '#1a0d04'; ctx.fill();
-
-  // light sliver — warm amber crescent on right edge
-  ctx.save();
-  ctx.beginPath(); ctx.arc(0, 0, r, 0, Math.PI * 2); ctx.clip();
-  const sg = ctx.createRadialGradient(r * 1.74, 0, r * 0.26, r * 1.74, 0, r);
-  sg.addColorStop(0,    'rgba(255,175,80,0.92)');
-  sg.addColorStop(0.42, 'rgba(220,120,40,0.44)');
-  sg.addColorStop(1,    'rgba(160,70,15,0)');
-  ctx.fillStyle = sg;
-  ctx.beginPath(); ctx.arc(r * 1.74, 0, r, 0, Math.PI * 2); ctx.fill();
-  ctx.restore();
-
+  ctx.filter = 'hue-rotate(185deg) saturate(0.75) brightness(0.8)';
+  ctx.drawImage(planetImg, ix, iy, drawW, drawH);
   ctx.restore();
 }
 const player = new Player();
