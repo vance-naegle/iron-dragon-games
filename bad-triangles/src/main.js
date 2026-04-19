@@ -157,6 +157,62 @@ class EnemyBullet {
   }
 }
 
+class Comet {
+  constructor() {
+    this.dead = false; this.radius = 10; this.trailTime = 0;
+    const side = Math.random();
+    const spd = 260 + Math.random() * 80;
+    if (side < 0.45) {
+      // from left, moving right with slight angle
+      this.x = -20; this.y = laserTop + 30 + Math.random() * (vh - groundHeight - laserTop - 60);
+      const ang = (Math.random() - 0.5) * 0.7;
+      this.vx = spd * Math.cos(ang); this.vy = spd * Math.sin(ang);
+    } else if (side < 0.55) {
+      // from top, moving diagonally down
+      this.x = vw * 0.15 + Math.random() * vw * 0.7; this.y = laserTop - 20;
+      const ang = Math.PI / 2 + (Math.random() - 0.5) * 0.8;
+      this.vx = spd * Math.cos(ang); this.vy = Math.abs(spd * Math.sin(ang));
+    } else {
+      // from right, moving left
+      this.x = vw + 20; this.y = laserTop + 30 + Math.random() * (vh - groundHeight - laserTop - 60);
+      const ang = Math.PI + (Math.random() - 0.5) * 0.7;
+      this.vx = spd * Math.cos(ang); this.vy = spd * Math.sin(ang);
+    }
+  }
+  update(dt) {
+    this.x += this.vx * dt; this.y += this.vy * dt;
+    // ground impact — explode
+    if (this.y + this.radius >= vh - groundHeight) {
+      triggerCometImpact(this.x, vh - groundHeight);
+      this.dead = true; return;
+    }
+    // exit off left, right, or top — just disappear
+    if (this.x < -150 || this.x > vw + 150 || this.y < -150) this.dead = true;
+    if (!this.dead) {
+      this.trailTime += dt;
+      const spd = Math.hypot(this.vx, this.vy);
+      const nx = -this.vy / spd; const ny = this.vx / spd;
+      while (this.trailTime >= 0.007) {
+        this.trailTime -= 0.007;
+        const spread = (Math.random() - 0.5) * 5;
+        cometTrails.push({ x: this.x + nx * spread, y: this.y + ny * spread, life: 1.0, decay: 0.28, size: 4 + Math.random() * 6 });
+      }
+    }
+  }
+  draw(ctx) {
+    ctx.save();
+    ctx.globalAlpha = 0.18; ctx.fillStyle = '#6ef';
+    ctx.beginPath(); ctx.arc(this.x, this.y, this.radius * 3.5, 0, Math.PI * 2); ctx.fill();
+    ctx.globalAlpha = 0.45; ctx.fillStyle = '#aef';
+    ctx.beginPath(); ctx.arc(this.x, this.y, this.radius * 2, 0, Math.PI * 2); ctx.fill();
+    ctx.globalAlpha = 0.85; ctx.fillStyle = '#dff';
+    ctx.beginPath(); ctx.arc(this.x, this.y, this.radius * 1.2, 0, Math.PI * 2); ctx.fill();
+    ctx.globalAlpha = 1; ctx.fillStyle = '#fff';
+    ctx.beginPath(); ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2); ctx.fill();
+    ctx.restore();
+  }
+}
+
 class Enemy {
   constructor(x, y, vx, vy) {
     this.x = x; this.y = y; this.vx = vx; this.vy = vy;
@@ -581,6 +637,10 @@ const thrustParticles = [];
 const enemyThrust = [];
 const enemyBullets = [];
 const enemyBulletTrails = [];
+const comets = [];
+const cometTrails = [];
+const shockwaves = [];
+let cometTimer = 6 + Math.random() * 4;
 let score = 0;
 let enemyTimer = 0;
 let boss = null;
@@ -828,6 +888,29 @@ class Boss {
   }
 }
 
+function triggerCometImpact(x, y) {
+  const blastRadius = 150;
+  SoundFX.playExplosion();
+  // big multi-layer explosion
+  explosions.push(new Explosion(x, y, ['#fff', '#aef', '#6ef', '#aff', '#ff8'], 40));
+  explosions.push(new Explosion(x, y, ['#fff', '#6ef', '#aef'], 20));
+  // expanding shockwave ring
+  shockwaves.push({ x, y, maxR: blastRadius, life: 1.0 });
+  // blast damage
+  if (!player.dead && Math.hypot(player.x - x, player.y - y) <= blastRadius + player.radius) player.destroy();
+  for (let e of enemies) {
+    if (e.dead) continue;
+    if (Math.hypot(e.x - x, e.y - y) <= blastRadius + e.radius) {
+      e.dead = true; score += 100;
+      SoundFX.playExplosion();
+      explosions.push(new Explosion(e.x, e.y, ENEMY_COLORS, 10));
+    }
+  }
+  if (boss && !boss.dead && Math.hypot(boss.x - x, boss.y - y) <= blastRadius + boss.radius) {
+    boss.hit(); boss.hit();
+  }
+}
+
 function rectCircleCollide(cx, cy, r, ox, oy, or) { const dx = cx - ox, dy = cy - oy; return dx * dx + dy * dy <= (r + or) * (r + or); }
 
 function update(dt) {
@@ -844,6 +927,7 @@ function update(dt) {
   if (boss) boss.update(dt);
   for (let m of mountains) m.x += m.vx * dt;
   for (let b of buildings) b.x += b.vx * dt;
+  for (let c of comets) c.update(dt);
 
   for (let e of enemies) {
     if (e.dead) continue;
@@ -900,6 +984,22 @@ function update(dt) {
     }
   }
 
+  // comet hits player or enemies
+  for (let c of comets) {
+    if (c.dead) continue;
+    if (rectCircleCollide(c.x, c.y, c.radius, player.x, player.y, player.radius)) player.destroy();
+    for (let e of enemies) {
+      if (e.dead) continue;
+      if (rectCircleCollide(c.x, c.y, c.radius, e.x, e.y, e.radius)) {
+        e.dead = true; score += 100;
+        SoundFX.playExplosion(); explosions.push(new Explosion(e.x, e.y, ENEMY_COLORS, 10));
+      }
+    }
+    if (boss && !boss.dead && rectCircleCollide(c.x, c.y, c.radius, boss.x, boss.y, boss.radius)) {
+      boss.hit();
+    }
+  }
+
   // powerups update and pickup
   for (let p of powerups) {
     if (p.dead) continue;
@@ -931,6 +1031,10 @@ function update(dt) {
   for (const p of enemyBulletTrails) p.life -= p.decay * dt;
   for (let i = bulletTrails.length - 1; i >= 0; i--) if (bulletTrails[i].life <= 0) bulletTrails.splice(i, 1);
   for (let i = enemyBulletTrails.length - 1; i >= 0; i--) if (enemyBulletTrails[i].life <= 0) enemyBulletTrails.splice(i, 1);
+  for (const p of cometTrails) p.life -= p.decay * dt;
+  for (let i = cometTrails.length - 1; i >= 0; i--) if (cometTrails[i].life <= 0) cometTrails.splice(i, 1);
+  for (let i = comets.length - 1; i >= 0; i--) if (comets[i].dead) comets.splice(i, 1);
+  for (let i = shockwaves.length - 1; i >= 0; i--) { shockwaves[i].life -= 1.4 * dt; if (shockwaves[i].life <= 0) shockwaves.splice(i, 1); }
   for (let m of mountains) {
     if (m.x + m.w < -100) { m.x = vw + 60 + Math.random() * 300; m.w = 80 + Math.random() * 120; m.h = 30 + Math.random() * 60; m.pts = makeMountainPts(); }
   }
@@ -946,6 +1050,10 @@ function update(dt) {
   obstacleTimer -= dt;
   if (obstacleTimer <= 0) { spawnObstacle(); obstacleTimer = 0.5 + Math.random() * 1.2; }
   if (!boss && !gameWin) { bossTimer -= dt; if (bossTimer <= 0) boss = new Boss(); }
+
+  // comet spawning
+  cometTimer -= dt;
+  if (!gameWin && cometTimer <= 0) { comets.push(new Comet()); cometTimer = 18 + Math.random() * 18; }
 
   // powerup spawning and cleanup
   powerupTimer -= dt;
@@ -1026,6 +1134,30 @@ function draw() {
   }
   ctx.restore();
 
+  // comet impact shockwaves
+  for (const sw of shockwaves) {
+    const r = sw.maxR * (1 - sw.life);
+    ctx.save();
+    ctx.strokeStyle = '#aef';
+    ctx.lineWidth = 4 * sw.life;
+    ctx.globalAlpha = sw.life * 0.8;
+    ctx.beginPath(); ctx.arc(sw.x, sw.y, r, 0, Math.PI * 2); ctx.stroke();
+    ctx.lineWidth = 12 * sw.life;
+    ctx.globalAlpha = sw.life * 0.25;
+    ctx.beginPath(); ctx.arc(sw.x, sw.y, r * 0.75, 0, Math.PI * 2); ctx.stroke();
+    ctx.restore();
+  }
+
+  // comet trails — white-hot at head, fading to ice blue
+  for (const p of cometTrails) {
+    const t = Math.max(0, p.life);
+    ctx.save();
+    ctx.globalAlpha = t * 0.88;
+    ctx.fillStyle = `rgb(${Math.floor(80 + t * 175)},${Math.floor(180 + t * 75)},255)`;
+    ctx.beginPath(); ctx.arc(p.x, p.y, p.size * t, 0, Math.PI * 2); ctx.fill();
+    ctx.restore();
+  }
+
   for (const p of bulletTrails) {
     const t = Math.max(0, p.life);
     ctx.save(); ctx.globalAlpha = t * 0.85;
@@ -1053,6 +1185,7 @@ function draw() {
     ctx.restore();
   }
   for (let e of enemies) e.draw(ctx);
+  for (let c of comets) c.draw(ctx);
   if (boss) boss.draw(ctx);
   // draw powerups
   for (let p of powerups) {
