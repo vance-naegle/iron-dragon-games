@@ -11,8 +11,10 @@ iron-dragon-games/
     ├── styles.css      # Game styles: layout, ad slots, start screen, rotate overlay
     ├── preview.mp4     # Gameplay recording used as card thumbnail on landing page
     ├── privacy.html    # Privacy policy page
+    ├── assets/
+    │   └── planet_02.png   # Alpha PNG planet, tinted blue via canvas filter at draw time
     └── src/
-        ├── main.js     # All game logic (~1450 lines)
+        ├── main.js     # All game logic (~1550 lines)
         └── audio.js    # Procedural Web Audio engine (SoundFX global)
 ```
 
@@ -89,9 +91,24 @@ Four parallax layers, back to front. All use normalized point arrays `[fx, fy]`:
 Draw order (back to front):
 1. `drawNebula(ctx)` — elliptical radial gradient blobs centred on horizon
 2. `starfield.draw(ctx)` — stars appear over nebula but behind planet
-3. `drawPlanet(ctx)` — dark orange dome + ring arc, only top half visible above terrain
+3. `drawPlanet(ctx)` — bitmap planet image, tinted blue via `ctx.filter`
+4. `drawAsteroids(ctx)` — tumbling polygon rocks, purely decorative
 
-Planet: `r = 190`, `vx = -10 px/s` (much slower than mountains). Centre y = `vh - groundHeight` so only the top hemisphere shows above the ground strip. Ring clipped to y < 0 (planet space) so only the sky arc is visible.
+Planet: `r = 190`, `vx = -10 px/s`. Centre y = `vh - groundHeight` so only the top hemisphere shows. Uses `assets/planet_02.png` (alpha PNG). Tint applied with `ctx.filter = 'hue-rotate(185deg) saturate(0.75) brightness(0.8)'`. Preloaded as `const planetImg = new Image()` at line 5.
+
+**Planet image swap**: change `planetImg.src` and adjust `p.r * 2.4` draw scale if needed. If using a black-background PNG (no alpha), add `ctx.globalCompositeOperation = 'screen'` — black drops out cleanly.
+
+## Asteroid field
+
+60 tumbling rocks, purely decorative — no collision. Lazy-initialised in `initAsteroids()` on first `updateAsteroids()` call.
+
+- Size: `r = 4–84px` biased toward small (`Math.pow(random, 1.8) * 80`)
+- Speed: inverse of size — small rocks are fast, large rocks are slow
+- `vx`: -12 to -142 px/s, `vy`: chaotic, `spin`: up to ±1.5 rad/s for small rocks
+- Colors: dark brown/blue palette (`#2a1a10`, `#1c1a2a`, etc.), fully opaque, no outline
+- Wrap at left edge with fresh random speed on re-entry
+- Visible on start screen (updated/drawn before `gameStarted` gate)
+- **Pending**: user plans to replace procedural polygons with PNG sprite sheet — ask for filename and grid layout when provided
 
 ## Comet system
 
