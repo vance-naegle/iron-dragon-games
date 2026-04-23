@@ -18,6 +18,42 @@ iron-dragon-games/
         └── audio.js    # Procedural Web Audio engine (SoundFX global)
 ```
 
+## New game checklist
+
+Every new game added to the site **must** include all four of the following before it is considered complete. These are non-negotiable defaults; the user may add to this list in the future.
+
+### 1 — Responsive design (PC + mobile)
+- Canvas fills the full viewport via `position:fixed; inset:0` and DPR-aware `resize()` (see Canvas coordinate system section below).
+- Touch input must work alongside mouse/keyboard. Use `touchstart` / `touchmove` / `touchend` on the canvas with `{ passive: false }` and `e.preventDefault()`.
+- Ad layout mirrors bad-triangles: left/right bars in landscape, top/bottom bars in portrait (see Ad slots below). Include a `#rotate-overlay` for games that require landscape.
+- Test at 100%, 125%, and 150% DPI scaling — never use `canvas.width`/`canvas.height` for logic.
+
+### 2 — Placeholder ad slots
+- Copy the ad-slot HTML structure from `bad-triangles/index.html` exactly: `#ad-top`, `#ad-bottom`, `#ad-left`, `#ad-right`, plus `#lc-ad` inside any level-complete or interstitial modal.
+- Copy the ad-slot CSS from `bad-triangles/styles.css` (layout, sizing, media queries).
+- Copy the inline ad-shuffle script from `bad-triangles/index.html` — it randomly assigns the three fictional in-universe brands (Weyland-Yutani, Umbrella Corp, Cyberdyne Systems) to each slot on every load.
+
+### 3 — Pause screen
+- A `gamePaused` boolean flag overlays any active game state.
+- **Esc** and **P** toggle pause. Only respond when the game is in an active state (e.g. `'playing'` or ball-on-paddle equivalent) — ignore keystrokes on start, game-over, and death screens.
+- When paused: `update()` returns immediately (everything freezes including the paddle), `draw()` renders the normal game scene underneath then draws the pause overlay on top.
+- Pause overlay: semi-transparent dark fill, large glowing "PAUSED" title, and a one-line hint showing the resume keys.
+- Reset `gamePaused = false` in `startGame()` and `startLevel()` so a restarted game is never stuck paused.
+
+### 5 — Privacy page
+- Every game folder gets its own `privacy.html` using the same structure as `bad-triangles/privacy.html` (inline styles, `.wrap` max-width container, `.back` link, same section headings).
+- Update the game title, the "Last updated" date, and the back-link href for each new game.
+- Link to it from two places: the start screen credit line (`#start-credit`) and the portal `index.html` footer.
+- Contact email is always `vance.naegle@gmail.com`.
+
+### 4 — Local high score screen
+- Store scores in `localStorage` under a key unique to the game (e.g. `breakout_scores`).
+- Keep the top 10 scores, sorted descending. Save once per session using a `scoreSaved` flag.
+- Display on the game-over screen: title, current score, ranked list of top 5, with the current run's entry highlighted in the brand cyan (`#6ef`). Track rank via a static property on the save function (e.g. `saveScore._rank`).
+- Pattern to follow: `getScores()` / `saveScore(s)` functions in `breakout/src/main.js`.
+
+---
+
 ## Dev setup
 
 - **Local server**: VS Code Live Server, port 5500
