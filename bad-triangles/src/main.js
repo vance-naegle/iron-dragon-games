@@ -2,20 +2,23 @@ const canvas = document.getElementById('game');
 const ctx = canvas.getContext('2d');
 let vw, vh;
 let scenery = null;
+const VIRT_W = 900;
+let gameScale = 1;
 const planetImg = new Image();
 planetImg.src = 'assets/planet_02.png';
 
 function resize() {
   const dpr = window.devicePixelRatio || 1;
-  const w = canvas.parentElement.clientWidth;
-  const h = canvas.parentElement.clientHeight;
-  canvas.width = Math.floor(w * dpr);
-  canvas.height = Math.floor(h * dpr);
-  canvas.style.width = w + 'px';
-  canvas.style.height = h + 'px';
-  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-  vw = w;
-  vh = h;
+  const sw  = canvas.parentElement.clientWidth;
+  const sh  = canvas.parentElement.clientHeight;
+  gameScale = sw / VIRT_W;
+  vw = VIRT_W;
+  vh = Math.round(sh / gameScale);
+  canvas.width  = Math.floor(sw * dpr);
+  canvas.height = Math.floor(sh * dpr);
+  canvas.style.width  = sw + 'px';
+  canvas.style.height = sh + 'px';
+  ctx.setTransform(dpr * gameScale, 0, 0, dpr * gameScale, 0, 0);
   scenery = null; // rebuild at new viewport size
 }
 window.addEventListener('resize', resize);
@@ -78,7 +81,7 @@ canvas.addEventListener('touchstart', (e) => {
   if (gameOver) { location.reload(); return; }
   for (const t of e.changedTouches) {
     touches[t.identifier] = {
-      side: t.clientX < vw * 0.65 ? 'left' : 'right',
+      side: t.clientX / gameScale < vw * 0.65 ? 'left' : 'right',
       startX: t.clientX, startY: t.clientY,
       curX: t.clientX,   curY: t.clientY,
     };
@@ -1444,3 +1447,20 @@ document.getElementById('start-btn').addEventListener('click', () => {
 let last = performance.now();
 function loop(now) { const dt = Math.min(0.05, (now - last) / 1000); last = now; update(dt); draw(); requestAnimationFrame(loop); }
 requestAnimationFrame(loop);
+
+// ── Fullscreen ─────────────────────────────────────────────────────────────
+(function () {
+  const btn = document.getElementById('fs-btn');
+  const rfs = document.documentElement.requestFullscreen || document.documentElement.webkitRequestFullscreen;
+  const efs = document.exitFullscreen || document.webkitExitFullscreen;
+  if (!rfs) { btn.style.display = 'none'; return; }
+  btn.addEventListener('click', () => {
+    if (!document.fullscreenElement && !document.webkitFullscreenElement)
+      rfs.call(document.documentElement);
+    else
+      efs.call(document);
+  });
+  const sync = () => { btn.textContent = (document.fullscreenElement || document.webkitFullscreenElement) ? '✕' : '⛶'; };
+  document.addEventListener('fullscreenchange', sync);
+  document.addEventListener('webkitfullscreenchange', sync);
+})();

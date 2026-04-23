@@ -27,6 +27,9 @@ Every new game added to the site **must** include all four of the following befo
 - Touch input must work alongside mouse/keyboard. Use `touchstart` / `touchmove` / `touchend` on the canvas with `{ passive: false }` and `e.preventDefault()`.
 - Ad layout mirrors bad-triangles: left/right bars in landscape, top/bottom bars in portrait (see Ad slots below). Include a `#rotate-overlay` for games that require landscape.
 - Test at 100%, 125%, and 150% DPI scaling — never use `canvas.width`/`canvas.height` for logic.
+- **Virtual resolution**: declare `const VIRT_W = 900; let gameScale = 1;`. In `resize()`, set `gameScale = parentWidth / VIRT_W`, `vw = VIRT_W`, `vh = Math.round(parentHeight / gameScale)`, and apply `ctx.setTransform(dpr * gameScale, 0, 0, dpr * gameScale, 0, 0)`. This keeps all game elements occupying the same fraction of the screen on every device. Divide all mouse/touch clientX/clientY by `gameScale` before using them as game coordinates.
+- **Fullscreen button**: add `<button id="fs-btn" title="Fullscreen">⛶</button>` inside `#game-wrapper`. Use the `requestFullscreen` / `webkitRequestFullscreen` API; hide the button if the API is unavailable. Toggle icon between ⛶ (enter) and ✕ (exit). Add `<meta name="apple-mobile-web-app-capable" content="yes">` and `<meta name="apple-mobile-web-app-status-bar-style" content="black-fullscreen">` to `<head>` for iOS home-screen standalone mode.
+- **Ad-slot canvas sizing**: use `canvas.parentElement.clientWidth/clientHeight` (not `window.innerWidth/innerHeight`) so the canvas correctly excludes ad-slot widths.
 
 ### 2 — Placeholder ad slots
 - Copy the ad-slot HTML structure from `bad-triangles/index.html` exactly: `#ad-top`, `#ad-bottom`, `#ad-left`, `#ad-right`, plus `#lc-ad` inside any level-complete or interstitial modal.

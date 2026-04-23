@@ -3,17 +3,22 @@
 const canvas = document.getElementById('game');
 const ctx    = canvas.getContext('2d');
 let vw, vh;
+const VIRT_W = 900;
+let gameScale = 1;
 
 // ── Resize ─────────────────────────────────────────────────────────────────
 function resize() {
   const dpr = window.devicePixelRatio || 1;
-  vw = window.innerWidth;
-  vh = window.innerHeight;
-  canvas.width  = Math.floor(vw * dpr);
-  canvas.height = Math.floor(vh * dpr);
-  canvas.style.width  = vw + 'px';
-  canvas.style.height = vh + 'px';
-  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  const sw  = canvas.parentElement.clientWidth;
+  const sh  = canvas.parentElement.clientHeight;
+  gameScale = sw / VIRT_W;
+  vw = VIRT_W;
+  vh = Math.round(sh / gameScale);
+  canvas.width  = Math.floor(sw * dpr);
+  canvas.height = Math.floor(sh * dpr);
+  canvas.style.width  = sw + 'px';
+  canvas.style.height = sh + 'px';
+  ctx.setTransform(dpr * gameScale, 0, 0, dpr * gameScale, 0, 0);
   paddle.w = paddleWidth();
   paddle.y = vh - 60;
   paddle.x = Math.max(0, Math.min(vw - paddle.w, paddle.x));
@@ -151,7 +156,7 @@ let mouseX        = null;
 let touchStartPos = null;
 const keys        = {};
 
-window.addEventListener('mousemove', e => { mouseX = e.clientX; });
+window.addEventListener('mousemove', e => { mouseX = e.clientX / gameScale; });
 window.addEventListener('keydown', e => {
   keys[e.code] = true;
   if (e.code === 'ArrowLeft' || e.code === 'ArrowRight' ||
@@ -167,21 +172,21 @@ canvas.addEventListener('click',     handleAction);
 
 canvas.addEventListener('touchstart', e => {
   e.preventDefault();
-  touchStartPos = { x: e.touches[0].clientX, y: e.touches[0].clientY };
-  mouseX = e.touches[0].clientX;
+  touchStartPos = { x: e.touches[0].clientX / gameScale, y: e.touches[0].clientY / gameScale };
+  mouseX = e.touches[0].clientX / gameScale;
 }, { passive: false });
 
 canvas.addEventListener('touchmove', e => {
   e.preventDefault();
-  mouseX = e.touches[0].clientX;
+  mouseX = e.touches[0].clientX / gameScale;
   touchStartPos = null; // moved → was a drag, not a tap
 }, { passive: false });
 
 canvas.addEventListener('touchend', e => {
   e.preventDefault();
   if (touchStartPos) {
-    const dx = Math.abs(e.changedTouches[0].clientX - touchStartPos.x);
-    const dy = Math.abs(e.changedTouches[0].clientY - touchStartPos.y);
+    const dx = Math.abs(e.changedTouches[0].clientX / gameScale - touchStartPos.x);
+    const dy = Math.abs(e.changedTouches[0].clientY / gameScale - touchStartPos.y);
     if (dx < 12 && dy < 12) handleAction();
   }
   touchStartPos = null;
@@ -504,3 +509,20 @@ document.getElementById('lc-continue').addEventListener('click', () => {
 window.addEventListener('resize', resize);
 resize();
 requestAnimationFrame(loop);
+
+// ── Fullscreen ─────────────────────────────────────────────────────────────
+(function () {
+  const btn = document.getElementById('fs-btn');
+  const rfs = document.documentElement.requestFullscreen || document.documentElement.webkitRequestFullscreen;
+  const efs = document.exitFullscreen || document.webkitExitFullscreen;
+  if (!rfs) { btn.style.display = 'none'; return; }
+  btn.addEventListener('click', () => {
+    if (!document.fullscreenElement && !document.webkitFullscreenElement)
+      rfs.call(document.documentElement);
+    else
+      efs.call(document);
+  });
+  const sync = () => { btn.textContent = (document.fullscreenElement || document.webkitFullscreenElement) ? '✕' : '⛶'; };
+  document.addEventListener('fullscreenchange', sync);
+  document.addEventListener('webkitfullscreenchange', sync);
+})();
