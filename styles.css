@@ -12,7 +12,8 @@ header h1{margin:0 0 10px;font-size:clamp(32px,7vw,72px);font-weight:900;letter-
 /* ── Game grid ────────────────────────────────────────────────── */
 main{max-width:728px;margin:0 auto;padding:0 16px 60px}
 .game-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
-@media(max-width:540px){.game-grid{grid-template-columns:1fr}}
+@media(max-width:727px){.game-grid{grid-template-columns:repeat(2,1fr)}}
+@media(max-width:480px){.game-grid{grid-template-columns:1fr}}
 
 .game-card{background:#081c30;border:1px solid #000;border-radius:12px;overflow:hidden;transition:transform .15s,box-shadow .15s}
 .game-card:hover{transform:translateY(-4px);box-shadow:0 8px 32px rgba(102,238,255,.15)}
