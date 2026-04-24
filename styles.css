@@ -35,7 +35,7 @@ main{max-width:960px;margin:0 auto;padding:0 20px 60px}
 .bp-paddle{width:56px;height:9px;background:#6ef;border-radius:5px;box-shadow:0 0 12px #6ef;margin-bottom:4px}
 
 /* ── About ────────────────────────────────────────────────────── */
-.about{max-width:720px;margin:0 auto 60px;padding:36px 48px;border:1px solid rgba(102,238,255,.55);border-radius:14px;box-shadow:0 0 24px rgba(102,238,255,.18),0 0 64px rgba(102,238,255,.07),inset 0 0 24px rgba(102,238,255,.04);text-align:center}
+.about{max-width:720px;margin:0 auto 60px;padding:36px 48px;border:2px solid rgba(68,136,255,.8);border-radius:14px;box-shadow:0 0 28px rgba(68,136,255,.35),0 0 72px rgba(68,136,255,.12),inset 0 0 24px rgba(68,136,255,.06);text-align:center;display:flex;flex-direction:column;align-items:center}
 .about-title{margin:0 0 14px;font-size:clamp(14px,2.2vw,18px);font-weight:700;letter-spacing:.18em;text-transform:uppercase;color:#6ef;text-shadow:0 0 12px #6ef}
 .about-bio{margin:0 0 20px;font-size:clamp(13px,1.8vw,15px);line-height:1.8;color:#7aaabf}
 .about-contact{display:inline-block;font-size:13px;letter-spacing:.1em;color:#4a7a99;text-decoration:none;border-bottom:1px solid rgba(102,238,255,.25);padding-bottom:2px;transition:color .15s,border-color .15s}
