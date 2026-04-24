@@ -797,6 +797,7 @@ let gameWin = false;
 const powerups = [];
 let powerupTimer = 12 + Math.random() * 14;
 let levelComplete = false;
+let bossDeathDelay = 0;
 
 // Level complete modal elements
 const lcModal = document.getElementById('level-complete');
@@ -1076,6 +1077,24 @@ function update(dt) {
   if (!gameStarted) return;
   if (paused) return;
   if (levelComplete) return;
+
+  // Waiting for boss explosion to finish before showing modal
+  if (bossDeathDelay > 0) {
+    bossDeathDelay -= dt;
+    for (let i = explosions.length - 1; i >= 0; i--) {
+      explosions[i].update(dt);
+      if (explosions[i].dead) explosions.splice(i, 1);
+    }
+    if (bossDeathDelay <= 0) {
+      bossDeathDelay = 0;
+      levelComplete = true;
+      if (lcTitle) lcTitle.textContent = `Level ${level - 1} Complete`;
+      if (lcSub) lcSub.textContent = `Continue to level ${level}?`;
+      if (lcModal) lcModal.classList.remove('hidden');
+    }
+    return;
+  }
+
   player.update(dt);
   if (input.shoot && player.canShoot()) player.shoot(bullets);
 
@@ -1119,17 +1138,14 @@ function update(dt) {
   if (boss && boss.dead) {
     // Player defeated the boss — award extra life if player survived and advance level
     if (!player.dead && !gameOver && !gameWin) {
-      player.lives = Math.min(99, player.lives + 1); // reward: extra life for boss kill
+      player.lives = Math.min(99, player.lives + 1);
       score += 500;
       level++;
       if (level > MAX_LEVELS) {
         gameWin = true;
       } else {
-        // show level complete modal (previous level completed)
-        levelComplete = true;
-        if (lcTitle) lcTitle.textContent = `Level ${level - 1} Complete`;
-        if (lcSub) lcSub.textContent = `Continue to level ${level}?`;
-        if (lcModal) lcModal.classList.remove('hidden');
+        // Delay modal so the boss explosion plays out (4 bursts × 160ms + ~1s particle life)
+        bossDeathDelay = 1.8;
       }
     }
     boss = null;
