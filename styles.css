@@ -34,6 +34,13 @@ main{max-width:960px;margin:0 auto;padding:0 20px 60px}
 .bp-ball{width:11px;height:11px;background:#fff;border-radius:50%;box-shadow:0 0 8px #6ef,0 0 18px #3af;margin:10px 0 6px}
 .bp-paddle{width:56px;height:9px;background:#6ef;border-radius:5px;box-shadow:0 0 12px #6ef;margin-bottom:4px}
 
+/* ── About ────────────────────────────────────────────────────── */
+.about{max-width:720px;margin:0 auto 60px;padding:36px 48px;border:1px solid rgba(102,238,255,.55);border-radius:14px;box-shadow:0 0 24px rgba(102,238,255,.18),0 0 64px rgba(102,238,255,.07),inset 0 0 24px rgba(102,238,255,.04);text-align:center}
+.about-title{margin:0 0 14px;font-size:clamp(14px,2.2vw,18px);font-weight:700;letter-spacing:.18em;text-transform:uppercase;color:#6ef;text-shadow:0 0 12px #6ef}
+.about-bio{margin:0 0 20px;font-size:clamp(13px,1.8vw,15px);line-height:1.8;color:#7aaabf}
+.about-contact{display:inline-block;font-size:13px;letter-spacing:.1em;color:#4a7a99;text-decoration:none;border-bottom:1px solid rgba(102,238,255,.25);padding-bottom:2px;transition:color .15s,border-color .15s}
+.about-contact:hover{color:#6ef;border-color:#6ef}
+
 /* ── Footer ───────────────────────────────────────────────────── */
 footer{text-align:center;padding:20px;font-size:11px;letter-spacing:.08em;color:#1e4060;border-top:1px solid #0a1d33}
 footer a{color:#1e4060;text-decoration:none}
