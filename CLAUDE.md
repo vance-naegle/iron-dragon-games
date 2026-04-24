@@ -4,18 +4,24 @@
 
 ```
 iron-dragon-games/
-├── index.html          # Landing page (game gallery)
-├── styles.css          # Landing page styles
-└── bad-triangles/
-    ├── index.html      # Game shell: canvas, ad slots, start screen, level-complete modal
-    ├── styles.css      # Game styles: layout, ad slots, start screen, rotate overlay
-    ├── preview.mp4     # Gameplay recording used as card thumbnail on landing page
-    ├── privacy.html    # Privacy policy page
-    ├── assets/
-    │   └── planet_02.png   # Alpha PNG planet, tinted blue via canvas filter at draw time
-    └── src/
-        ├── main.js     # All game logic (~1550 lines)
-        └── audio.js    # Procedural Web Audio engine (SoundFX global)
+├── index.html          # Landing page (game gallery + about + 3 ad slots)
+├── styles.css          # Landing page styles (game grid, about section, ad slots)
+├── bad-triangles/
+│   ├── index.html      # Game shell: canvas, ad slots, start screen, level-complete modal
+│   ├── styles.css      # Game styles: layout, ad slots, start screen, rotate overlay
+│   ├── preview.mp4     # Gameplay recording used as card thumbnail on landing page
+│   ├── privacy.html    # Privacy policy page
+│   ├── assets/
+│   │   └── planet_02.png   # Alpha PNG planet, tinted blue via canvas filter at draw time
+│   └── src/
+│       ├── main.js     # All game logic (~1550 lines)
+│       └── audio.js    # Procedural Web Audio engine (SoundFX global)
+├── breakout/
+│   ├── index.html / styles.css / privacy.html
+│   └── src/main.js
+└── avoid/
+    ├── index.html / styles.css / privacy.html
+    └── src/main.js
 ```
 
 ## New game checklist
@@ -42,6 +48,12 @@ Every new game added to the site **must** include all four of the following befo
 - When paused: `update()` returns immediately (everything freezes including the paddle), `draw()` renders the normal game scene underneath then draws the pause overlay on top.
 - Pause overlay: semi-transparent dark fill, large glowing "PAUSED" title, and a one-line hint showing the resume keys.
 - Reset `gamePaused = false` in `startGame()` and `startLevel()` so a restarted game is never stuck paused.
+- **Main Menu button**: all three games have a `Main Menu  [ H ]` button drawn on the pause canvas. Press **H** or click the button to return to `../index.html`. Implementation pattern:
+  - `let homeBtnRect = null;` declared alongside other state flags.
+  - Set in the pause draw block each frame: `homeBtnRect = { x, y, w: 220, h: 44 }`. Draw with `ctx.rect()` — do **not** use `ctx.roundRect()` (browser support gaps cause silent failure).
+  - `checkHomeBtn(clientX, clientY)` converts to game coords via `canvas.getBoundingClientRect()`: `(clientX - r.left) / gameScale`. Do **not** divide raw clientX by gameScale without subtracting the canvas left offset — the canvas starts after the ad bar, not at viewport x=0.
+  - In bad-triangles, attach click to `window` (not `canvas`) so keyboard-focus state can't block it.
+  - Avoid the `⌂` glyph in `system-ui,Arial` — it renders as nothing, silently suppressing the entire `fillText` call. Use plain ASCII instead.
 
 ### 5 — Privacy page
 - Every game folder gets its own `privacy.html` using the same structure as `bad-triangles/privacy.html` (inline styles, `.wrap` max-width container, `.back` link, same section headings).
@@ -77,6 +89,14 @@ let vw, vh;   // logical viewport size in CSS pixels
 ```
 
 **Known bug pattern**: using `canvas.width` instead of `vw` for off-screen culling causes objects to survive past the right edge on any scaled display (Windows 125%/150% DPI). This already bit us on player bullets and the starfield. Always use `vw`/`vh`.
+
+**Canvas-relative hit testing**: when converting a mouse/touch `clientX` to game coordinates for UI elements (buttons drawn on the canvas), always subtract the canvas origin first:
+```js
+const r = canvas.getBoundingClientRect();
+const x = (clientX - r.left) / gameScale;
+const y = (clientY - r.top)  / gameScale;
+```
+Using `clientX / gameScale` alone is wrong whenever the canvas doesn't start at viewport x=0 (e.g. when left ad bars are visible). This bit us on the pause screen Main Menu button in all three games.
 
 ## main.js structure
 
@@ -176,6 +196,22 @@ All audio is procedurally synthesised — no audio asset files.
 - **Landscape**: shows left/right ad bars (120px), safe-area padding for notched phones
 - Detection: `@media (pointer: coarse) and (orientation: portrait/landscape)`
 - Rotate overlay: `#rotate-overlay`, hidden by default, shown via CSS media query only
+
+## Landing page (index.html / styles.css)
+
+Structure (top to bottom):
+1. Animated starfield canvas (`#bg`) — fixed, z-index -1
+2. `<header>` — site title + tagline
+3. Ad slot 1 — leaderboard (`#lp-ad-1`), 728×90 / 320×50 mobile
+4. `<main>` — `.game-grid` (auto-fill, min 280px columns)
+5. Ad slot 2 — leaderboard (`#lp-ad-2`)
+6. `<section class="about">` — studio bio + contact email with cyan glow border
+7. Ad slot 3 — leaderboard (`#lp-ad-3`)
+8. `<footer>` — copyright + per-game privacy links
+
+Ad slots on the landing page use the same in-universe brand shuffle script as the games. Slot IDs are `lp-ad-1`, `lp-ad-2`, `lp-ad-3`. The `.ad-wrap` / `.ad-slot` / `.ad-inner` / `.ad-label` CSS classes are defined in `styles.css` alongside the brand colour rules (`[data-co="weyland"]` etc.).
+
+The About section uses `border: 2px solid rgba(68,136,255,.8)` (blue, distinct from the cyan `#6ef` used on game cards) with `box-shadow` glow. Contact email: `vance.naegle@gmail.com`.
 
 ## Ad slots
 
