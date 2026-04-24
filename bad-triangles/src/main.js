@@ -717,7 +717,7 @@ function drawPlanet(ctx) {
 }
 // ── Asteroid field — background decoration, no collision ───────
 const asteroidField = [];
-const ASTEROID_COLORS = ['#2a1a10','#1a1520','#2e1c12','#1e1828','#231510','#1c1a2a','#321e14','#16141e'];
+const ASTEROID_COLORS = ['#162234','#1a2a3e','#1e2d3e','#243040','#263748','#1c2838','#2f4054','#0f1a28'];
 
 function makeAsteroidPts(r) {
   const segs = 7 + Math.floor(Math.random() * 5);
