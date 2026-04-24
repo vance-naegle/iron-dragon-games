@@ -10,8 +10,9 @@ header h1{margin:0 0 10px;font-size:clamp(32px,7vw,72px);font-weight:900;letter-
 .tagline{margin:0;font-size:clamp(11px,2vw,15px);letter-spacing:.22em;text-transform:uppercase;color:#4a7a99}
 
 /* ── Game grid ────────────────────────────────────────────────── */
-main{max-width:960px;margin:0 auto;padding:0 20px 60px}
-.game-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:28px}
+main{max-width:728px;margin:0 auto;padding:0 16px 60px}
+.game-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
+@media(max-width:540px){.game-grid{grid-template-columns:1fr}}
 
 .game-card{background:#081c30;border:1px solid #000;border-radius:12px;overflow:hidden;transition:transform .15s,box-shadow .15s}
 .game-card:hover{transform:translateY(-4px);box-shadow:0 8px 32px rgba(102,238,255,.15)}
@@ -53,7 +54,7 @@ main{max-width:960px;margin:0 auto;padding:0 20px 60px}
 [data-co="cyberdyne"].ad-tag{color:#e8a020}
 
 /* ── About ────────────────────────────────────────────────────── */
-.about{max-width:720px;margin:0 auto 60px;padding:36px 48px;border:2px solid rgba(68,136,255,.8);border-radius:14px;box-shadow:0 0 28px rgba(68,136,255,.35),0 0 72px rgba(68,136,255,.12),inset 0 0 24px rgba(68,136,255,.06);text-align:center;display:flex;flex-direction:column;align-items:center}
+.about{max-width:728px;margin:0 auto 60px;padding:36px 48px;border:2px solid rgba(68,136,255,.8);border-radius:14px;box-shadow:0 0 28px rgba(68,136,255,.35),0 0 72px rgba(68,136,255,.12),inset 0 0 24px rgba(68,136,255,.06);text-align:center;display:flex;flex-direction:column;align-items:center}
 .about-title{margin:0 0 14px;font-size:clamp(14px,2.2vw,18px);font-weight:700;letter-spacing:.18em;text-transform:uppercase;color:#6ef;text-shadow:0 0 12px #6ef}
 .about-bio{margin:0 0 20px;font-size:clamp(13px,1.8vw,15px);line-height:1.8;color:#7aaabf}
 .about-contact{display:inline-block;font-size:13px;letter-spacing:.1em;color:#4a7a99;text-decoration:none;border-bottom:1px solid rgba(102,238,255,.25);padding-bottom:2px;transition:color .15s,border-color .15s}
