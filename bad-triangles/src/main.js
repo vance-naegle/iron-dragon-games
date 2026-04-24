@@ -122,7 +122,7 @@ canvas.addEventListener('touchcancel', (e) => {
   updateTouchInput();
 }, { passive: false });
 
-canvas.addEventListener('click', (e) => {
+window.addEventListener('click', (e) => {
   checkHomeBtn(e.clientX, e.clientY);
 });
 
@@ -1405,7 +1405,7 @@ function draw() {
     ctx.beginPath(); ctx.rect(bX, bY, bW, bH); ctx.stroke();
     ctx.fillStyle = '#6ab';
     ctx.font = '16px system-ui,Arial';
-    ctx.fillText('⌂  Main Menu    [H]', vw / 2, bY + 28);
+    ctx.fillText('Main Menu  [ H ]', vw / 2, bY + 28);
     ctx.restore();
   }
 
