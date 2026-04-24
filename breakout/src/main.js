@@ -52,6 +52,7 @@ let ball       = null;
 let paddle     = { x: 0, y: 0, w: 0 };
 let scoreSaved  = false;
 let gamePaused  = false;
+let homeBtnRect = null;
 let deathTimer  = 0;
 
 // ── High scores ────────────────────────────────────────────────────────────
@@ -168,7 +169,10 @@ window.addEventListener('keydown', e => {
   }
 });
 window.addEventListener('keyup',     e => { keys[e.code] = false; });
-canvas.addEventListener('click',     handleAction);
+canvas.addEventListener('click', e => {
+  if (checkHomeBtn(e.clientX / gameScale, e.clientY / gameScale)) return;
+  handleAction();
+});
 
 canvas.addEventListener('touchstart', e => {
   e.preventDefault();
@@ -185,12 +189,26 @@ canvas.addEventListener('touchmove', e => {
 canvas.addEventListener('touchend', e => {
   e.preventDefault();
   if (touchStartPos) {
-    const dx = Math.abs(e.changedTouches[0].clientX / gameScale - touchStartPos.x);
-    const dy = Math.abs(e.changedTouches[0].clientY / gameScale - touchStartPos.y);
-    if (dx < 12 && dy < 12) handleAction();
+    const ex = e.changedTouches[0].clientX / gameScale;
+    const ey = e.changedTouches[0].clientY / gameScale;
+    const dx = Math.abs(ex - touchStartPos.x);
+    const dy = Math.abs(ey - touchStartPos.y);
+    if (dx < 12 && dy < 12) {
+      if (!checkHomeBtn(ex, ey)) handleAction();
+    }
   }
   touchStartPos = null;
 }, { passive: false });
+
+function checkHomeBtn(x, y) {
+  if (!homeBtnRect || !gamePaused) return false;
+  if (x >= homeBtnRect.x && x <= homeBtnRect.x + homeBtnRect.w &&
+      y >= homeBtnRect.y && y <= homeBtnRect.y + homeBtnRect.h) {
+    location.href = '../index.html';
+    return true;
+  }
+  return false;
+}
 
 function handleAction() {
   if (state === 'paused') { state = 'playing'; return; }
@@ -464,6 +482,14 @@ function drawPauseScreen() {
   ctx.fillStyle  = '#4a7a99';
   ctx.font = '600 14px "Segoe UI",sans-serif';
   ctx.fillText('ESC  ·  P  TO  RESUME', vw / 2, vh / 2 + 32);
+  const bW = 160, bH = 36, bX = vw / 2 - 80, bY = vh / 2 + 58;
+  homeBtnRect = { x: bX, y: bY, w: bW, h: bH };
+  ctx.strokeStyle = '#4a7a99';
+  ctx.lineWidth = 1.5;
+  ctx.beginPath(); ctx.roundRect(bX, bY, bW, bH, 6); ctx.stroke();
+  ctx.fillStyle = '#4a7a99';
+  ctx.font = '600 13px "Segoe UI",sans-serif';
+  ctx.fillText('⌂  Main Menu', vw / 2, bY + 23);
   ctx.textAlign = 'left';
 }
 

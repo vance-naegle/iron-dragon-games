@@ -51,6 +51,7 @@ let bullets    = [];
 let particles  = [];
 let stars      = [];
 let gamePaused = false;
+let homeBtnRect = null;
 let scoreSaved = false;
 let deathTimer = 0;
 let fireCooldown = 0;
@@ -211,15 +212,38 @@ function hitTestTouch(touchList) {
   }
 }
 
+let tapStart = null;
 canvas.addEventListener('touchstart', e => {
   e.preventDefault(); hasTouched = true;
   hitTestTouch(e.touches);
+  if (e.touches.length === 1) tapStart = { x: e.touches[0].clientX, y: e.touches[0].clientY };
   if (state === 'gameover') { startGame(); }
 }, { passive: false });
-canvas.addEventListener('touchmove',   e => { e.preventDefault(); hitTestTouch(e.touches); }, { passive: false });
-canvas.addEventListener('touchend',    e => { e.preventDefault(); hitTestTouch(e.touches); }, { passive: false });
-canvas.addEventListener('touchcancel', e => { e.preventDefault(); hitTestTouch(e.touches); }, { passive: false });
-canvas.addEventListener('click', () => { if (state === 'gameover') startGame(); });
+canvas.addEventListener('touchmove',   e => { e.preventDefault(); hitTestTouch(e.touches); tapStart = null; }, { passive: false });
+canvas.addEventListener('touchend', e => {
+  e.preventDefault(); hitTestTouch(e.touches);
+  if (tapStart && e.changedTouches.length === 1) {
+    const t = e.changedTouches[0];
+    if (Math.abs(t.clientX - tapStart.x) < 15 && Math.abs(t.clientY - tapStart.y) < 15)
+      checkHomeBtn(t.clientX / gameScale, t.clientY / gameScale);
+  }
+  tapStart = null;
+}, { passive: false });
+canvas.addEventListener('touchcancel', e => { e.preventDefault(); hitTestTouch(e.touches); tapStart = null; }, { passive: false });
+canvas.addEventListener('click', e => {
+  if (checkHomeBtn(e.clientX / gameScale, e.clientY / gameScale)) return;
+  if (state === 'gameover') startGame();
+});
+
+function checkHomeBtn(x, y) {
+  if (!homeBtnRect || !gamePaused) return false;
+  if (x >= homeBtnRect.x && x <= homeBtnRect.x + homeBtnRect.w &&
+      y >= homeBtnRect.y && y <= homeBtnRect.y + homeBtnRect.h) {
+    location.href = '../index.html';
+    return true;
+  }
+  return false;
+}
 
 // ── Update ─────────────────────────────────────────────────────────────────
 function update(dt) {
@@ -539,6 +563,14 @@ function drawPauseScreen() {
   ctx.fillStyle  = '#4a7a99';
   ctx.font = '600 14px "Segoe UI",sans-serif';
   ctx.fillText('ESC  ·  P  TO  RESUME', vw / 2, vh / 2 + 32);
+  const bW = 160, bH = 36, bX = vw / 2 - 80, bY = vh / 2 + 58;
+  homeBtnRect = { x: bX, y: bY, w: bW, h: bH };
+  ctx.strokeStyle = '#4a7a99';
+  ctx.lineWidth = 1.5;
+  ctx.beginPath(); ctx.roundRect(bX, bY, bW, bH, 6); ctx.stroke();
+  ctx.fillStyle = '#4a7a99';
+  ctx.font = '600 13px "Segoe UI",sans-serif';
+  ctx.fillText('⌂  Main Menu', vw / 2, bY + 23);
   ctx.textAlign  = 'left';
 }
 

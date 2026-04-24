@@ -102,7 +102,15 @@ canvas.addEventListener('touchmove', (e) => {
 
 canvas.addEventListener('touchend', (e) => {
   e.preventDefault();
-  for (const t of e.changedTouches) delete touches[t.identifier];
+  for (const t of e.changedTouches) {
+    const td = touches[t.identifier];
+    if (td && paused) {
+      const dx = Math.abs(t.clientX - td.startX);
+      const dy = Math.abs(t.clientY - td.startY);
+      if (dx < 15 && dy < 15) checkHomeBtn(t.clientX / gameScale, t.clientY / gameScale);
+    }
+    delete touches[t.identifier];
+  }
   updateTouchInput();
 }, { passive: false });
 
@@ -110,6 +118,20 @@ canvas.addEventListener('touchcancel', (e) => {
   for (const t of e.changedTouches) delete touches[t.identifier];
   updateTouchInput();
 }, { passive: false });
+
+canvas.addEventListener('click', (e) => {
+  checkHomeBtn(e.clientX / gameScale, e.clientY / gameScale);
+});
+
+function checkHomeBtn(x, y) {
+  if (!homeBtnRect || !paused) return false;
+  if (x >= homeBtnRect.x && x <= homeBtnRect.x + homeBtnRect.w &&
+      y >= homeBtnRect.y && y <= homeBtnRect.y + homeBtnRect.h) {
+    location.href = '../index.html';
+    return true;
+  }
+  return false;
+}
 
 class Starfield {
   constructor(count) { this.stars = []; for (let i = 0; i < count; i++) this.stars.push(this._makeStar()); }
@@ -437,6 +459,7 @@ class Explosion {
 let gameStarted = false;
 let gameOver = false;
 let paused = false;
+let homeBtnRect = null;
 let scoreSaved = false;
 
 // ── Local high scores (localStorage) ──────────────────────────
@@ -1367,6 +1390,14 @@ function draw() {
     ctx.font = '18px system-ui,Arial';
     ctx.fillStyle = '#6ab';
     ctx.fillText('Press P or Esc to resume', vw / 2, vh / 2 + 22);
+    const bW = 160, bH = 36, bX = vw / 2 - 80, bY = vh / 2 + 56;
+    homeBtnRect = { x: bX, y: bY, w: bW, h: bH };
+    ctx.strokeStyle = '#4a7a99';
+    ctx.lineWidth = 1.5;
+    ctx.beginPath(); ctx.roundRect(bX, bY, bW, bH, 6); ctx.stroke();
+    ctx.fillStyle = '#4a7a99';
+    ctx.font = '14px system-ui,Arial';
+    ctx.fillText('⌂  Main Menu', vw / 2, bY + 23);
     ctx.restore();
   }
 
