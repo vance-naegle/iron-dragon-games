@@ -170,7 +170,7 @@ window.addEventListener('keydown', e => {
 });
 window.addEventListener('keyup',     e => { keys[e.code] = false; });
 canvas.addEventListener('click', e => {
-  if (checkHomeBtn(e.clientX / gameScale, e.clientY / gameScale)) return;
+  if (checkHomeBtn(e.clientX, e.clientY)) return;
   handleAction();
 });
 
@@ -194,14 +194,18 @@ canvas.addEventListener('touchend', e => {
     const dx = Math.abs(ex - touchStartPos.x);
     const dy = Math.abs(ey - touchStartPos.y);
     if (dx < 12 && dy < 12) {
-      if (!checkHomeBtn(ex, ey)) handleAction();
+      const raw = e.changedTouches[0];
+      if (!checkHomeBtn(raw.clientX, raw.clientY)) handleAction();
     }
   }
   touchStartPos = null;
 }, { passive: false });
 
-function checkHomeBtn(x, y) {
+function checkHomeBtn(clientX, clientY) {
   if (!homeBtnRect || !gamePaused) return false;
+  const r = canvas.getBoundingClientRect();
+  const x = (clientX - r.left) / gameScale;
+  const y = (clientY - r.top)  / gameScale;
   if (x >= homeBtnRect.x && x <= homeBtnRect.x + homeBtnRect.w &&
       y >= homeBtnRect.y && y <= homeBtnRect.y + homeBtnRect.h) {
     location.href = '../index.html';
@@ -486,7 +490,7 @@ function drawPauseScreen() {
   homeBtnRect = { x: bX, y: bY, w: bW, h: bH };
   ctx.strokeStyle = '#4a7a99';
   ctx.lineWidth = 1.5;
-  ctx.beginPath(); ctx.roundRect(bX, bY, bW, bH, 6); ctx.stroke();
+  ctx.beginPath(); ctx.rect(bX, bY, bW, bH); ctx.stroke();
   ctx.fillStyle = '#4a7a99';
   ctx.font = '600 13px "Segoe UI",sans-serif';
   ctx.fillText('⌂  Main Menu', vw / 2, bY + 23);

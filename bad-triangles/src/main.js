@@ -107,7 +107,7 @@ canvas.addEventListener('touchend', (e) => {
     if (td && paused) {
       const dx = Math.abs(t.clientX - td.startX);
       const dy = Math.abs(t.clientY - td.startY);
-      if (dx < 15 && dy < 15) checkHomeBtn(t.clientX / gameScale, t.clientY / gameScale);
+      if (dx < 15 && dy < 15) checkHomeBtn(t.clientX, t.clientY);
     }
     delete touches[t.identifier];
   }
@@ -120,11 +120,14 @@ canvas.addEventListener('touchcancel', (e) => {
 }, { passive: false });
 
 canvas.addEventListener('click', (e) => {
-  checkHomeBtn(e.clientX / gameScale, e.clientY / gameScale);
+  checkHomeBtn(e.clientX, e.clientY);
 });
 
-function checkHomeBtn(x, y) {
+function checkHomeBtn(clientX, clientY) {
   if (!homeBtnRect || !paused) return false;
+  const r = canvas.getBoundingClientRect();
+  const x = (clientX - r.left) / gameScale;
+  const y = (clientY - r.top)  / gameScale;
   if (x >= homeBtnRect.x && x <= homeBtnRect.x + homeBtnRect.w &&
       y >= homeBtnRect.y && y <= homeBtnRect.y + homeBtnRect.h) {
     location.href = '../index.html';
@@ -1394,7 +1397,7 @@ function draw() {
     homeBtnRect = { x: bX, y: bY, w: bW, h: bH };
     ctx.strokeStyle = '#4a7a99';
     ctx.lineWidth = 1.5;
-    ctx.beginPath(); ctx.roundRect(bX, bY, bW, bH, 6); ctx.stroke();
+    ctx.beginPath(); ctx.rect(bX, bY, bW, bH); ctx.stroke();
     ctx.fillStyle = '#4a7a99';
     ctx.font = '14px system-ui,Arial';
     ctx.fillText('⌂  Main Menu', vw / 2, bY + 23);
