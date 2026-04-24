@@ -16,9 +16,7 @@
 
   <!-- AdSense slot 1: leaderboard, above the fold -->
   <div class="ad-wrap">
-    <div class="ad-slot" aria-label="Advertisement">
-      <span class="ad-label">Advertisement</span>
-    </div>
+    <div id="lp-ad-1" class="ad-slot" aria-label="Advertisement"></div>
   </div>
 
   <main>
@@ -91,9 +89,7 @@
 
   <!-- AdSense slot 2: leaderboard, mid-page between grid and About -->
   <div class="ad-wrap">
-    <div class="ad-slot" aria-label="Advertisement">
-      <span class="ad-label">Advertisement</span>
-    </div>
+    <div id="lp-ad-2" class="ad-slot" aria-label="Advertisement"></div>
   </div>
 
   <section class="about">
@@ -104,14 +100,32 @@
 
   <!-- AdSense slot 3: leaderboard, below content before footer -->
   <div class="ad-wrap">
-    <div class="ad-slot" aria-label="Advertisement">
-      <span class="ad-label">Advertisement</span>
-    </div>
+    <div id="lp-ad-3" class="ad-slot" aria-label="Advertisement"></div>
   </div>
 
   <footer>
     <p>© 2026 Iron Dragon Games &nbsp;·&nbsp; <a href="bad-triangles/privacy.html">Bad Triangles Privacy</a> &nbsp;·&nbsp; <a href="breakout/privacy.html">Breakout Privacy</a> &nbsp;·&nbsp; <a href="avoid/privacy.html">Avoid Privacy</a></p>
   </footer>
+
+<script>
+(function(){
+  const ads = [
+    { id:'weyland',  name:'Weyland-Yutani',  tag:'Building Better Worlds',      symbol:'⬡' },
+    { id:'umbrella', name:'Umbrella Corp',    tag:'Our Business Is Life Itself', symbol:'☂' },
+    { id:'cyberdyne',name:'Cyberdyne Systems',tag:'Shaping Tomorrow, Today',     symbol:'◈' },
+  ];
+  const shuffled = [...ads].sort(()=>Math.random()-0.5);
+  ['lp-ad-1','lp-ad-2','lp-ad-3'].forEach((id,i)=>{
+    const ad = shuffled[i % shuffled.length];
+    document.getElementById(id).innerHTML =
+      `<div class="ad-inner" data-co="${ad.id}">
+        <div class="ad-symbol">${ad.symbol}</div>
+        <div class="ad-name">${ad.name}</div>
+        <div class="ad-tag">${ad.tag}</div>
+      </div>`;
+  });
+})();
+</script>
 
 <script>
 (function () {

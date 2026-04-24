@@ -37,8 +37,20 @@ main{max-width:960px;margin:0 auto;padding:0 20px 60px}
 /* ── Ad slots ─────────────────────────────────────────────────── */
 .ad-wrap{text-align:center;padding:10px 20px}
 .ad-slot{display:inline-flex;align-items:center;justify-content:center;width:728px;max-width:100%;height:90px;background:rgba(8,28,48,.45);border:1px dashed rgba(30,64,96,.65);border-radius:4px}
-.ad-label{font-size:10px;letter-spacing:.18em;text-transform:uppercase;color:#1e3a52;user-select:none}
 @media(max-width:480px){.ad-slot{height:50px}}
+
+.ad-inner{display:flex;flex-direction:row;align-items:center;justify-content:center;gap:14px;width:100%;height:100%;padding:0 20px;text-align:center}
+.ad-symbol{font-size:26px;line-height:1;opacity:.9;flex-shrink:0}
+.ad-name{font-size:12px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;line-height:1.2}
+.ad-tag{font-size:10px;letter-spacing:.08em;text-transform:uppercase;opacity:.65;line-height:1.3}
+@media(max-width:480px){.ad-symbol{font-size:18px}.ad-name{font-size:10px}.ad-tag{display:none}}
+
+[data-co="weyland"]  .ad-symbol,[data-co="weyland"]  .ad-name{color:#5bb8e8;text-shadow:0 0 10px rgba(91,184,232,.5)}
+[data-co="umbrella"] .ad-symbol,[data-co="umbrella"] .ad-name{color:#e84040;text-shadow:0 0 10px rgba(232,64,64,.5)}
+[data-co="cyberdyne"].ad-symbol,[data-co="cyberdyne"].ad-name{color:#e8a020;text-shadow:0 0 10px rgba(232,160,32,.5)}
+[data-co="weyland"]  .ad-tag{color:#5bb8e8}
+[data-co="umbrella"] .ad-tag{color:#e84040}
+[data-co="cyberdyne"].ad-tag{color:#e8a020}
 
 /* ── About ────────────────────────────────────────────────────── */
 .about{max-width:720px;margin:0 auto 60px;padding:36px 48px;border:2px solid rgba(68,136,255,.8);border-radius:14px;box-shadow:0 0 28px rgba(68,136,255,.35),0 0 72px rgba(68,136,255,.12),inset 0 0 24px rgba(68,136,255,.06);text-align:center;display:flex;flex-direction:column;align-items:center}
