@@ -185,6 +185,7 @@ window.addEventListener('keydown', e => {
   keys[e.code] = true;
   if ((e.code === 'Escape' || e.code === 'KeyP') && (state === 'playing' || state === 'dying'))
     gamePaused = !gamePaused;
+  if (e.code === 'KeyH' && gamePaused) location.href = '../index.html';
 });
 window.addEventListener('keyup', e => { keys[e.code] = false; });
 
@@ -566,14 +567,16 @@ function drawPauseScreen() {
   ctx.fillStyle  = '#4a7a99';
   ctx.font = '600 14px "Segoe UI",sans-serif';
   ctx.fillText('ESC  ·  P  TO  RESUME', vw / 2, vh / 2 + 32);
-  const bW = 160, bH = 36, bX = vw / 2 - 80, bY = vh / 2 + 58;
+  const bW = 220, bH = 44, bX = vw / 2 - 110, bY = vh / 2 + 54;
   homeBtnRect = { x: bX, y: bY, w: bW, h: bH };
-  ctx.strokeStyle = '#4a7a99';
+  ctx.fillStyle = 'rgba(74,122,153,0.18)';
+  ctx.fillRect(bX, bY, bW, bH);
+  ctx.strokeStyle = '#6ab';
   ctx.lineWidth = 1.5;
   ctx.beginPath(); ctx.rect(bX, bY, bW, bH); ctx.stroke();
-  ctx.fillStyle = '#4a7a99';
-  ctx.font = '600 13px "Segoe UI",sans-serif';
-  ctx.fillText('⌂  Main Menu', vw / 2, bY + 23);
+  ctx.fillStyle = '#6ab';
+  ctx.font = '600 15px "Segoe UI",sans-serif';
+  ctx.fillText('⌂  Main Menu    [H]', vw / 2, bY + 28);
   ctx.textAlign  = 'left';
 }
 

@@ -38,7 +38,10 @@ window.addEventListener('keydown', (e) => {
     paused = !paused;
     return;
   }
-  if (paused) return;
+  if (paused) {
+    if (e.key === 'h' || e.key === 'H') location.href = '../index.html';
+    return;
+  }
   if (e.key === 'ArrowLeft' || e.key === 'a') input.left = true;
   if (e.key === 'ArrowRight' || e.key === 'd') input.right = true;
   if (e.key === 'ArrowUp' || e.key === 'w') input.up = true;
@@ -1393,14 +1396,16 @@ function draw() {
     ctx.font = '18px system-ui,Arial';
     ctx.fillStyle = '#6ab';
     ctx.fillText('Press P or Esc to resume', vw / 2, vh / 2 + 22);
-    const bW = 160, bH = 36, bX = vw / 2 - 80, bY = vh / 2 + 56;
+    const bW = 220, bH = 44, bX = vw / 2 - 110, bY = vh / 2 + 52;
     homeBtnRect = { x: bX, y: bY, w: bW, h: bH };
-    ctx.strokeStyle = '#4a7a99';
+    ctx.fillStyle = 'rgba(74,122,153,0.18)';
+    ctx.fillRect(bX, bY, bW, bH);
+    ctx.strokeStyle = '#6ab';
     ctx.lineWidth = 1.5;
     ctx.beginPath(); ctx.rect(bX, bY, bW, bH); ctx.stroke();
-    ctx.fillStyle = '#4a7a99';
-    ctx.font = '14px system-ui,Arial';
-    ctx.fillText('⌂  Main Menu', vw / 2, bY + 23);
+    ctx.fillStyle = '#6ab';
+    ctx.font = '16px system-ui,Arial';
+    ctx.fillText('⌂  Main Menu    [H]', vw / 2, bY + 28);
     ctx.restore();
   }
 
