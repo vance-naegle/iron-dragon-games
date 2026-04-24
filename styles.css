@@ -34,6 +34,12 @@ main{max-width:960px;margin:0 auto;padding:0 20px 60px}
 .bp-ball{width:11px;height:11px;background:#fff;border-radius:50%;box-shadow:0 0 8px #6ef,0 0 18px #3af;margin:10px 0 6px}
 .bp-paddle{width:56px;height:9px;background:#6ef;border-radius:5px;box-shadow:0 0 12px #6ef;margin-bottom:4px}
 
+/* ── Ad slots ─────────────────────────────────────────────────── */
+.ad-wrap{text-align:center;padding:10px 20px}
+.ad-slot{display:inline-flex;align-items:center;justify-content:center;width:728px;max-width:100%;height:90px;background:rgba(8,28,48,.45);border:1px dashed rgba(30,64,96,.65);border-radius:4px}
+.ad-label{font-size:10px;letter-spacing:.18em;text-transform:uppercase;color:#1e3a52;user-select:none}
+@media(max-width:480px){.ad-slot{height:50px}}
+
 /* ── About ────────────────────────────────────────────────────── */
 .about{max-width:720px;margin:0 auto 60px;padding:36px 48px;border:2px solid rgba(68,136,255,.8);border-radius:14px;box-shadow:0 0 28px rgba(68,136,255,.35),0 0 72px rgba(68,136,255,.12),inset 0 0 24px rgba(68,136,255,.06);text-align:center;display:flex;flex-direction:column;align-items:center}
 .about-title{margin:0 0 14px;font-size:clamp(14px,2.2vw,18px);font-weight:700;letter-spacing:.18em;text-transform:uppercase;color:#6ef;text-shadow:0 0 12px #6ef}
