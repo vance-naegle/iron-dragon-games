@@ -101,6 +101,7 @@ function initBricks() {
         w: bw, h: BRICK_H,
         color:  ROW_COLORS[r],
         points: ROW_POINTS[r],
+        row:    r,
         alive:  true,
       });
     }
@@ -126,6 +127,7 @@ function initBall() {
 
 // ── Game init ──────────────────────────────────────────────────────────────
 function startGame() {
+  SoundFX.cancelSpeech();
   score = 0; lives = 3; level = 1; scoreSaved = false; gamePaused = false; particles = [];
   paddle.w = paddleWidth();
   paddle.y = vh - 60;
@@ -178,6 +180,7 @@ canvas.addEventListener('click', e => {
 
 canvas.addEventListener('touchstart', e => {
   e.preventDefault();
+  SoundFX.resume();
   touchStartPos = { x: e.touches[0].clientX / gameScale, y: e.touches[0].clientY / gameScale };
   mouseX = e.touches[0].clientX / gameScale;
 }, { passive: false });
@@ -297,6 +300,7 @@ function update(dt) {
     ball.vx = sp * Math.cos(angle);
     ball.vy = sp * Math.sin(angle);
     if (ball.vy > 0) ball.vy = -ball.vy; // safety: always send up
+    SoundFX.playPaddleHit();
   }
 
   // Fell off bottom
@@ -305,6 +309,7 @@ function update(dt) {
     if (lives <= 0) {
       state = 'gameover';
       if (!scoreSaved) { saveScore(score); scoreSaved = true; }
+      SoundFX.sayGameOver();
     } else {
       state = 'dying';
       deathTimer = 1.8;
@@ -323,6 +328,7 @@ function update(dt) {
       b.alive = false;
       score  += b.points;
       spawnParticles(ball.x, ball.y, b.color, 8);
+      SoundFX.playBrickHit(b.row);
       if (!reflected) {
         const ox = (BALL_R + b.w * 0.5) - Math.abs(ball.x - (b.x + b.w * 0.5));
         const oy = (BALL_R + b.h * 0.5) - Math.abs(ball.y - (b.y + b.h * 0.5));
@@ -565,6 +571,8 @@ function loop(now) {
 // ── Bootstrap ──────────────────────────────────────────────────────────────
 document.getElementById('start-btn').addEventListener('click', () => {
   document.getElementById('start-screen').style.display = 'none';
+  SoundFX.resume();
+  SoundFX.startMusic();
   startGame();
 });
 
