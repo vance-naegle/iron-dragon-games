@@ -268,5 +268,20 @@ const SoundFX = (() => {
     });
   }
 
-  return { resume, playShoot, playExplosion, startAmbient, playPickup };
+  // --- Game over (speech) ---
+  function sayGameOver() {
+    if (!window.speechSynthesis) return;
+    window.speechSynthesis.cancel();
+    setTimeout(() => {
+      try {
+        const utt  = new SpeechSynthesisUtterance('Game over. Play again?');
+        utt.rate   = 0.88;
+        utt.pitch  = 0.85;
+        utt.volume = 1;
+        window.speechSynthesis.speak(utt);
+      } catch (_) {}
+    }, 700);
+  }
+
+  return { resume, playShoot, playExplosion, startAmbient, playPickup, sayGameOver };
 })();

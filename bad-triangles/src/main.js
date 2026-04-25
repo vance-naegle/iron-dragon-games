@@ -621,7 +621,7 @@ class Player {
     SoundFX.playExplosion();
     explosions.push(new Explosion(this.x, this.y, PLAYER_COLORS, 14));
     this.lives -= 1;
-    if (this.lives <= 0) { gameOver = true; return; }
+    if (this.lives <= 0) { gameOver = true; SoundFX.sayGameOver(); return; }
     setTimeout(() => {
       this.dead = false;
       this.invulnerable = 1.6;
