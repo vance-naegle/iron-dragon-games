@@ -53,6 +53,7 @@ let paddle     = { x: 0, y: 0, w: 0 };
 let scoreSaved  = false;
 let gamePaused  = false;
 let homeBtnRect = null;
+let pauseBtnRect = null;
 let deathTimer  = 0;
 
 // ── High scores ────────────────────────────────────────────────────────────
@@ -196,7 +197,10 @@ canvas.addEventListener('touchend', e => {
     const dy = Math.abs(ey - touchStartPos.y);
     if (dx < 12 && dy < 12) {
       const raw = e.changedTouches[0];
-      if (!checkHomeBtn(raw.clientX, raw.clientY)) handleAction();
+      if (!checkHomeBtn(raw.clientX, raw.clientY) && !checkPauseBtn(raw.clientX, raw.clientY)) {
+        if (gamePaused) gamePaused = false;
+        else handleAction();
+      }
     }
   }
   touchStartPos = null;
@@ -210,6 +214,18 @@ function checkHomeBtn(clientX, clientY) {
   if (x >= homeBtnRect.x && x <= homeBtnRect.x + homeBtnRect.w &&
       y >= homeBtnRect.y && y <= homeBtnRect.y + homeBtnRect.h) {
     location.href = '../index.html';
+    return true;
+  }
+}
+
+function checkPauseBtn(clientX, clientY) {
+  if (!pauseBtnRect) return false;
+  const r = canvas.getBoundingClientRect();
+  const x = (clientX - r.left) / gameScale;
+  const y = (clientY - r.top)  / gameScale;
+  if (x >= pauseBtnRect.x && x <= pauseBtnRect.x + pauseBtnRect.w &&
+      y >= pauseBtnRect.y && y <= pauseBtnRect.y + pauseBtnRect.h) {
+    if (state === 'playing' || state === 'paused') gamePaused = !gamePaused;
     return true;
   }
   return false;
@@ -410,7 +426,7 @@ function drawHUD() {
     ctx.beginPath();
     ctx.shadowColor = '#6ef';
     ctx.shadowBlur  = 8;
-    ctx.arc(vw - 16 - i * 20, 22, 6, 0, Math.PI * 2);
+    ctx.arc(vw - (matchMedia('(pointer:coarse)').matches ? 64 : 16) - i * 20, 22, 6, 0, Math.PI * 2);
     ctx.fillStyle = '#6ef';
     ctx.fill();
   }
@@ -486,7 +502,7 @@ function drawPauseScreen() {
   ctx.shadowBlur = 0;
   ctx.fillStyle  = '#4a7a99';
   ctx.font = '600 14px "Segoe UI",sans-serif';
-  ctx.fillText('ESC  ·  P  TO  RESUME', vw / 2, vh / 2 + 32);
+  ctx.fillText(matchMedia('(pointer:coarse)').matches ? 'TAP  TO  RESUME  ·  ESC  ·  P' : 'ESC  ·  P  TO  RESUME', vw / 2, vh / 2 + 32);
   const bW = 220, bH = 44, bX = vw / 2 - 110, bY = vh / 2 + 54;
   homeBtnRect = { x: bX, y: bY, w: bW, h: bH };
   ctx.fillStyle = 'rgba(74,122,153,0.18)';
@@ -497,6 +513,24 @@ function drawPauseScreen() {
   ctx.fillStyle = '#6ab';
   ctx.font = '600 15px "Segoe UI",sans-serif';
   ctx.fillText('⌂  Main Menu    [H]', vw / 2, bY + 28);
+  ctx.textAlign = 'left';
+}
+
+function drawMobilePauseBtn() {
+  if (!matchMedia('(pointer:coarse)').matches || state === 'start' || state === 'gameover') {
+    pauseBtnRect = null; return;
+  }
+  const pbW = 44, pbH = 28, pbX = vw - pbW - 8, pbY = 6;
+  pauseBtnRect = { x: pbX, y: pbY, w: pbW, h: pbH };
+  ctx.fillStyle = gamePaused ? 'rgba(102,238,255,0.22)' : 'rgba(102,238,255,0.1)';
+  ctx.fillRect(pbX, pbY, pbW, pbH);
+  ctx.strokeStyle = '#6ef';
+  ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.rect(pbX, pbY, pbW, pbH); ctx.stroke();
+  ctx.fillStyle = '#6ef';
+  ctx.font = 'bold 13px "Segoe UI",sans-serif';
+  ctx.textAlign = 'center';
+  ctx.fillText(gamePaused ? '▶' : 'II', pbX + pbW / 2, pbY + 19);
   ctx.textAlign = 'left';
 }
 
@@ -514,6 +548,7 @@ function draw() {
   if (state === 'dying')    drawDying();
   if (state === 'gameover') drawGameOver();
   if (gamePaused)                drawPauseScreen();
+  drawMobilePauseBtn();
 }
 
 // ── Main loop ──────────────────────────────────────────────────────────────

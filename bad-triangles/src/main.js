@@ -107,10 +107,14 @@ canvas.addEventListener('touchend', (e) => {
   e.preventDefault();
   for (const t of e.changedTouches) {
     const td = touches[t.identifier];
-    if (td && paused) {
+    if (td) {
       const dx = Math.abs(t.clientX - td.startX);
       const dy = Math.abs(t.clientY - td.startY);
-      if (dx < 15 && dy < 15) checkHomeBtn(t.clientX, t.clientY);
+      if (dx < 15 && dy < 15) {
+        if (!checkPauseBtn(t.clientX, t.clientY) && paused) {
+          if (!checkHomeBtn(t.clientX, t.clientY)) paused = false;
+        }
+      }
     }
     delete touches[t.identifier];
   }
@@ -134,6 +138,19 @@ function checkHomeBtn(clientX, clientY) {
   if (x >= homeBtnRect.x && x <= homeBtnRect.x + homeBtnRect.w &&
       y >= homeBtnRect.y && y <= homeBtnRect.y + homeBtnRect.h) {
     location.href = '../index.html';
+    return true;
+  }
+  return false;
+}
+
+function checkPauseBtn(clientX, clientY) {
+  if (!pauseBtnRect) return false;
+  const r = canvas.getBoundingClientRect();
+  const x = (clientX - r.left) / gameScale;
+  const y = (clientY - r.top)  / gameScale;
+  if (x >= pauseBtnRect.x && x <= pauseBtnRect.x + pauseBtnRect.w &&
+      y >= pauseBtnRect.y && y <= pauseBtnRect.y + pauseBtnRect.h) {
+    if (gameStarted && !gameOver && !gameWin) paused = !paused;
     return true;
   }
   return false;
@@ -466,6 +483,7 @@ let gameStarted = false;
 let gameOver = false;
 let paused = false;
 let homeBtnRect = null;
+let pauseBtnRect = null;
 let scoreSaved = false;
 
 // ── Local high scores (localStorage) ──────────────────────────
@@ -1411,7 +1429,7 @@ function draw() {
     ctx.fillText('PAUSED', vw / 2, vh / 2 - 14);
     ctx.font = '18px system-ui,Arial';
     ctx.fillStyle = '#6ab';
-    ctx.fillText('Press P or Esc to resume', vw / 2, vh / 2 + 22);
+    ctx.fillText(isMobile ? 'Tap to resume' : 'Press P or Esc to resume', vw / 2, vh / 2 + 22);
     const bW = 220, bH = 44, bX = vw / 2 - 110, bY = vh / 2 + 52;
     homeBtnRect = { x: bX, y: bY, w: bW, h: bH };
     ctx.fillStyle = 'rgba(74,122,153,0.18)';
@@ -1429,7 +1447,7 @@ function draw() {
 }
 
 function drawTouchControls() {
-  if (!isMobile || !gameStarted || gameOver) return;
+  if (!isMobile || !gameStarted || gameOver) { pauseBtnRect = null; return; }
 
   const joyGuideX = 76, joyGuideY = vh - 88, joyR = 46;
   const fireX = vw - 76, fireY = vh - 88, fireR = 42;
@@ -1485,6 +1503,24 @@ function drawTouchControls() {
   ctx.fillStyle = fireActive ? 'rgba(255,210,60,0.95)' : 'rgba(255,210,60,0.32)';
   ctx.font = `bold 13px system-ui,Arial`; ctx.textAlign = 'center';
   ctx.fillText('FIRE', fireX, fireY + 5);
+
+  // ── Pause button ─────────────────────────────────────────
+  if (!gameWin) {
+    const pbW = 44, pbH = 28, pbX = vw - pbW - 16, pbY = 16;
+    pauseBtnRect = { x: pbX, y: pbY, w: pbW, h: pbH };
+    ctx.setLineDash([]);
+    ctx.fillStyle = paused ? 'rgba(102,238,255,0.22)' : 'rgba(102,238,255,0.1)';
+    ctx.fillRect(pbX, pbY, pbW, pbH);
+    ctx.strokeStyle = paused ? 'rgba(102,238,255,0.8)' : 'rgba(102,238,255,0.4)';
+    ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.rect(pbX, pbY, pbW, pbH); ctx.stroke();
+    ctx.fillStyle = paused ? 'rgba(102,238,255,0.95)' : 'rgba(102,238,255,0.5)';
+    ctx.font = 'bold 13px system-ui,Arial'; ctx.textAlign = 'center';
+    ctx.fillText(paused ? '▶' : 'II', pbX + pbW / 2, pbY + 19);
+    ctx.textAlign = 'left';
+  } else {
+    pauseBtnRect = null;
+  }
 
   ctx.restore();
 }

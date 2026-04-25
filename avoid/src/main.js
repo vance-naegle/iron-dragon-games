@@ -52,10 +52,13 @@ let particles  = [];
 let stars      = [];
 let gamePaused = false;
 let homeBtnRect = null;
+let pauseBtnRect = null;
 let scoreSaved = false;
 let deathTimer = 0;
 let fireCooldown = 0;
 let thrustFlicker = 0;
+let levelScoreStart = 0;
+let levelMaxScore   = 1;
 
 // ── Stars ──────────────────────────────────────────────────────────────────
 function initStars() {
@@ -130,6 +133,9 @@ function initShip() {
 function initLevel() {
   asteroids = []; bullets = [];
   const count = 3 + level;
+  levelScoreStart = score;
+  levelMaxScore   = count * 520; // 20 + 2×(50 + 2×100) per large rock tree
+  SoundFX.setTempoPressure(0);
   for (let i = 0; i < count; i++) {
     const p = safeSpawnPos(200);
     asteroids.push(mkAsteroid('large', p.x, p.y));
@@ -215,7 +221,7 @@ function hitTestTouch(touchList) {
 
 let tapStart = null;
 canvas.addEventListener('touchstart', e => {
-  e.preventDefault(); hasTouched = true;
+  e.preventDefault(); hasTouched = true; SoundFX.resume();
   hitTestTouch(e.touches);
   if (e.touches.length === 1) tapStart = { x: e.touches[0].clientX, y: e.touches[0].clientY };
   if (state === 'gameover') { startGame(); }
@@ -225,8 +231,11 @@ canvas.addEventListener('touchend', e => {
   e.preventDefault(); hitTestTouch(e.touches);
   if (tapStart && e.changedTouches.length === 1) {
     const t = e.changedTouches[0];
-    if (Math.abs(t.clientX - tapStart.x) < 15 && Math.abs(t.clientY - tapStart.y) < 15)
-      checkHomeBtn(t.clientX, t.clientY);
+    if (Math.abs(t.clientX - tapStart.x) < 15 && Math.abs(t.clientY - tapStart.y) < 15) {
+      if (!checkPauseBtn(t.clientX, t.clientY) && !checkHomeBtn(t.clientX, t.clientY)) {
+        if (gamePaused) gamePaused = false;
+      }
+    }
   }
   tapStart = null;
 }, { passive: false });
@@ -249,9 +258,24 @@ function checkHomeBtn(clientX, clientY) {
   return false;
 }
 
+function checkPauseBtn(clientX, clientY) {
+  if (!pauseBtnRect) return false;
+  const r = canvas.getBoundingClientRect();
+  const x = (clientX - r.left) / gameScale;
+  const y = (clientY - r.top)  / gameScale;
+  if (x >= pauseBtnRect.x && x <= pauseBtnRect.x + pauseBtnRect.w &&
+      y >= pauseBtnRect.y && y <= pauseBtnRect.y + pauseBtnRect.h) {
+    if (state === 'playing' || state === 'dying') gamePaused = !gamePaused;
+    return true;
+  }
+  return false;
+}
+
 // ── Update ─────────────────────────────────────────────────────────────────
 function update(dt) {
   if (gamePaused) return;
+
+  SoundFX.setTempoPressure(Math.min(1, (score - levelScoreStart) / levelMaxScore));
 
   if (state === 'dying') {
     deathTimer -= dt;
@@ -308,6 +332,7 @@ function update(dt) {
                    vx: ship.vx + nx * BULLET_SPD, vy: ship.vy + ny * BULLET_SPD,
                    life: BULLET_LIFE });
     fireCooldown = FIRE_CD;
+    SoundFX.playShoot();
   }
 
   // ── Bullets ──
@@ -331,6 +356,7 @@ function update(dt) {
         usedBullets.add(bi);
         score += SIZES[a.size].pts;
         spawnParticles(a.x, a.y, '#22ccff', 10);
+        SoundFX.playAsteroidHit(a.size);
         newAsteroids.push(...splitAsteroid(a));
         break;
       }
@@ -353,9 +379,11 @@ function update(dt) {
           a.vx = nx * spd * (0.9 + Math.random() * 0.3);
           a.vy = ny * spd * (0.9 + Math.random() * 0.3);
           spawnParticles(ship.x, ship.y, '#6ef', 7);
+          SoundFX.playShieldDeflect();
           ship.invTimer = 0.3; ship.invincible = true; // brief invincibility after deflect
         } else {
           spawnParticles(ship.x, ship.y, '#ff4455', 18);
+          SoundFX.playShipExplosion();
           ship = null; lives--;
           state = 'dying'; deathTimer = 1.8;
           break;
@@ -493,7 +521,7 @@ function drawHUD() {
   // Lives as tiny ships
   for (let i = 0; i < lives; i++) {
     ctx.save();
-    ctx.translate(vw - 16 - i * 22, 22);
+    ctx.translate(vw - (matchMedia('(pointer:coarse)').matches ? 64 : 16) - i * 22, 22);
     ctx.rotate(-Math.PI / 2);
     ctx.beginPath();
     ctx.moveTo(8, 0); ctx.lineTo(-5, -5); ctx.lineTo(-3, 0); ctx.lineTo(-5, 5);
@@ -566,7 +594,7 @@ function drawPauseScreen() {
   ctx.shadowBlur = 0;
   ctx.fillStyle  = '#4a7a99';
   ctx.font = '600 14px "Segoe UI",sans-serif';
-  ctx.fillText('ESC  ·  P  TO  RESUME', vw / 2, vh / 2 + 32);
+  ctx.fillText(matchMedia('(pointer:coarse)').matches ? 'TAP  TO  RESUME  ·  ESC  ·  P' : 'ESC  ·  P  TO  RESUME', vw / 2, vh / 2 + 32);
   const bW = 220, bH = 44, bX = vw / 2 - 110, bY = vh / 2 + 54;
   homeBtnRect = { x: bX, y: bY, w: bW, h: bH };
   ctx.fillStyle = 'rgba(74,122,153,0.18)';
@@ -578,6 +606,24 @@ function drawPauseScreen() {
   ctx.font = '600 15px "Segoe UI",sans-serif';
   ctx.fillText('⌂  Main Menu    [H]', vw / 2, bY + 28);
   ctx.textAlign  = 'left';
+}
+
+function drawMobilePauseBtn() {
+  if (!matchMedia('(pointer:coarse)').matches || state === 'start' || state === 'gameover') {
+    pauseBtnRect = null; return;
+  }
+  const pbW = 44, pbH = 28, pbX = vw - pbW - 8, pbY = 6;
+  pauseBtnRect = { x: pbX, y: pbY, w: pbW, h: pbH };
+  ctx.fillStyle = gamePaused ? 'rgba(102,238,255,0.22)' : 'rgba(102,238,255,0.1)';
+  ctx.fillRect(pbX, pbY, pbW, pbH);
+  ctx.strokeStyle = '#6ef';
+  ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.rect(pbX, pbY, pbW, pbH); ctx.stroke();
+  ctx.fillStyle = '#6ef';
+  ctx.font = 'bold 13px "Segoe UI",sans-serif';
+  ctx.textAlign = 'center';
+  ctx.fillText(gamePaused ? '▶' : 'II', pbX + pbW / 2, pbY + 19);
+  ctx.textAlign = 'left';
 }
 
 function drawGameOver() {
@@ -633,6 +679,7 @@ function draw() {
   if (state === 'dying')    drawDying();
   if (state === 'gameover') drawGameOver();
   if (gamePaused)           drawPauseScreen();
+  drawMobilePauseBtn();
 }
 
 // ── Main loop ──────────────────────────────────────────────────────────────
@@ -648,6 +695,8 @@ function loop(now) {
 // ── Bootstrap ──────────────────────────────────────────────────────────────
 document.getElementById('start-btn').addEventListener('click', () => {
   document.getElementById('start-screen').style.display = 'none';
+  SoundFX.resume();
+  SoundFX.startMusic();
   startGame();
 });
 
