@@ -154,6 +154,25 @@ const SoundFX = (() => {
     nsrc.start(t);
   }
 
+  // ── Game over (speech) ───────────────────────────────────────────────────────
+  function sayGameOver() {
+    if (!window.speechSynthesis) return;
+    window.speechSynthesis.cancel();
+    setTimeout(() => {
+      try {
+        const utt  = new SpeechSynthesisUtterance('Game over. Play again?');
+        utt.rate   = 0.88;
+        utt.pitch  = 0.85;
+        utt.volume = 1;
+        window.speechSynthesis.speak(utt);
+      } catch (_) {}
+    }, 700);
+  }
+
+  function cancelSpeech() {
+    if (window.speechSynthesis) window.speechSynthesis.cancel();
+  }
+
   // ── Background music ──────────────────────────────────────────────────────────
   let musicStarted = false;
   let _pressure    = 0; // 0 = slow/calm, 1 = fast/frantic
@@ -254,5 +273,5 @@ const SoundFX = (() => {
     scheduleArp();
   }
 
-  return { resume, playShoot, playAsteroidHit, playShipExplosion, playShieldDeflect, startMusic, setTempoPressure };
+  return { resume, playShoot, playAsteroidHit, playShipExplosion, playShieldDeflect, sayGameOver, cancelSpeech, startMusic, setTempoPressure };
 })();

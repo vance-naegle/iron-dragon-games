@@ -143,6 +143,7 @@ function initLevel() {
 }
 
 function startGame() {
+  SoundFX.cancelSpeech();
   score = 0; lives = 3; level = 1; scoreSaved = false;
   gamePaused = false; particles = []; fireCooldown = 0;
   initShip(); initLevel(); state = 'playing';
@@ -286,6 +287,7 @@ function update(dt) {
       if (lives <= 0) {
         state = 'gameover';
         if (!scoreSaved) { saveScore(score); scoreSaved = true; }
+        SoundFX.sayGameOver();
       } else { initShip(); state = 'playing'; }
     }
     return;

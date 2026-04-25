@@ -74,6 +74,40 @@ const SoundFX = (() => {
     nsrc.start(t);
   }
 
+  // ── Miss (ball fell off bottom) ──────────────────────────────────────────────
+  function playMiss() {
+    const c  = ac();
+    const t  = c.currentTime;
+    const sr = c.sampleRate;
+
+    // Descending wail — sine sweeping down fast then lingering low
+    const osc = c.createOscillator();
+    const g   = c.createGain();
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(420, t);
+    osc.frequency.exponentialRampToValueAtTime(60, t + 0.55);
+    g.gain.setValueAtTime(0.32, t);
+    g.gain.setValueAtTime(0.32, t + 0.15);
+    g.gain.exponentialRampToValueAtTime(0.001, t + 0.7);
+    osc.connect(g); g.connect(c.destination);
+    osc.start(t); osc.stop(t + 0.71);
+
+    // Low rumble noise burst
+    const nLen = Math.ceil(sr * 0.4);
+    const nBuf = c.createBuffer(1, nLen, sr);
+    const nd   = nBuf.getChannelData(0);
+    for (let i = 0; i < nLen; i++) nd[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / nLen, 1.5);
+    const nsrc = c.createBufferSource();
+    nsrc.buffer = nBuf;
+    const filt  = c.createBiquadFilter();
+    filt.type = 'lowpass'; filt.frequency.value = 280;
+    const ng = c.createGain();
+    ng.gain.setValueAtTime(0.28, t);
+    ng.gain.exponentialRampToValueAtTime(0.001, t + 0.4);
+    nsrc.connect(filt); filt.connect(ng); ng.connect(c.destination);
+    nsrc.start(t);
+  }
+
   // ── Game over (speech) ───────────────────────────────────────────────────────
   function sayGameOver() {
     if (!window.speechSynthesis) return;
@@ -215,5 +249,5 @@ const SoundFX = (() => {
     });
   }
 
-  return { resume, playBrickHit, playPaddleHit, sayGameOver, cancelSpeech, startMusic };
+  return { resume, playBrickHit, playPaddleHit, playMiss, sayGameOver, cancelSpeech, startMusic };
 })();

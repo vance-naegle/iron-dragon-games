@@ -311,6 +311,7 @@ function update(dt) {
       if (!scoreSaved) { saveScore(score); scoreSaved = true; }
       SoundFX.sayGameOver();
     } else {
+      SoundFX.playMiss();
       state = 'dying';
       deathTimer = 1.8;
     }
