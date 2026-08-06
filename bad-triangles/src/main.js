@@ -34,6 +34,10 @@ const input = { left: false, right: false, up: false, down: false, shoot: false 
 window.addEventListener('keydown', (e) => {
   SoundFX.resume();
   SoundFX.startAmbient();
+  if (e.key === 'Enter' && levelComplete) {
+    continueToNextLevel();
+    return;
+  }
   if ((e.key === 'p' || e.key === 'P' || e.key === 'Escape') && gameStarted && !gameOver && !gameWin) {
     paused = !paused;
     return;
@@ -822,7 +826,7 @@ const lcModal = document.getElementById('level-complete');
 const lcTitle = document.getElementById('lc-title');
 const lcSub = document.getElementById('lc-sub');
 const lcContinue = document.getElementById('lc-continue');
-if (lcContinue) lcContinue.addEventListener('click', () => {
+function continueToNextLevel() {
   levelComplete = false;
   if (lcModal) lcModal.classList.add('hidden');
   // clear active hazards so the player resumes safely
@@ -830,7 +834,8 @@ if (lcContinue) lcContinue.addEventListener('click', () => {
   enemyTimer = 2.0;
   bossTimer = 6 + Math.random() * 4;
   player.invulnerable = 1.6;
-});
+}
+if (lcContinue) lcContinue.addEventListener('click', continueToNextLevel);
 
 function spawnExtraLife() {
   const y = 40 + Math.random() * (vh - 120);
