@@ -8,14 +8,26 @@
   <title>Tree of Life — Iron Dragon Games</title>
   <link rel="stylesheet" href="styles.css">
 
-  <!-- 8th Wall SLAM engine + three.js bridge.
-       TODO: replace YOUR_8TH_WALL_APP_KEY with the real App Key from the
-       8th Wall console (tied to the games.irondragonstudios.com domain). -->
-  <script src="//cdn.8thwall.com/web/three/three-1.2.0.js"></script>
-  <script src="//cdn.8thwall.com/web/xr3js/xr3js-1.2.0.js"></script>
-  <script async src="//apps.8thwall.com/xrweb?appKey=YOUR_8TH_WALL_APP_KEY"></script>
+  <!-- 8th Wall Engine (open source, no account/App Key needed as of the
+       Feb 2026 platform retirement) + XRExtras + Landing Page fallback.
+       Source: https://github.com/8thwall/threejs-world-effects-example -->
+  <script src="https://cdn.jsdelivr.net/npm/@8thwall/engine-binary@1/dist/xr.js" async crossorigin="anonymous" data-preload-chunks="slam"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@8thwall/xrextras@1/dist/xrextras.js" crossorigin="anonymous"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@8thwall/landing-page@1/dist/landing-page.js" crossorigin="anonymous"></script>
+
+  <!-- three.js as a native ES module via import map — no bundler needed.
+       (three.js dropped its plain <script> global build at r160.) -->
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js"
+    }
+  }
+  </script>
 </head>
 <body>
+  <canvas id="camerafeed"></canvas>
+
   <div id="loading-screen">
     <h1>Tree of Life</h1>
     <p id="loading-msg">Point your camera at the ground to begin&hellip;</p>
@@ -27,8 +39,8 @@
     <span id="score-value">0</span>
   </div>
 
-  <div id="place-hint" class="hidden">Tap the ground to plant the tree</div>
+  <div id="place-hint" class="hidden">Tap to plant the tree</div>
 
-  <script src="src/main.js"></script>
+  <script type="module" src="src/main.js"></script>
 </body>
 </html>

@@ -1,6 +1,12 @@
-// Tree of Life — SLAM WebAR, 8th Wall + three.js
-// Scene: a Tree of Life is placed on a tapped surface. Gnats orbit the
+// Tree of Life — SLAM WebAR, 8th Wall Engine (open source) + three.js
+// Scene: a Tree of Life is placed where the user taps. Gnats orbit the
 // canopy; tapping a gnat kills it and increments the score.
+//
+// Integration pattern verified against the official current example:
+// https://github.com/8thwall/threejs-world-effects-example
+
+import * as THREE from 'three';
+window.THREE = THREE; // XR8's pipeline modules expect a global THREE
 
 const MAX_GNATS = 16;
 const GNAT_HIT_RADIUS = 0.14; // invisible hit-sphere, bigger than the visible mesh
@@ -10,6 +16,7 @@ let treeGroup = null;
 let placed = false;
 let gnats = [];
 let score = 0;
+let lastUpdateTime = null;
 
 const scoreUi = document.getElementById('score-ui');
 const scoreValue = document.getElementById('score-value');
@@ -27,7 +34,8 @@ function addScore(n) {
 // buildPlaceholderTree/buildGnat for glTF loaders once assets land in
 // ../assets/ — GNAT_ORBIT_CENTER is the shared anchor point both use.
 const TREE_SIZE = 0.3; // cube edge length, meters
-const GNAT_ORBIT_CENTER = new THREE.Vector3(0, TREE_SIZE * 1.3, 0);
+const TREE_LOCAL_POS = new THREE.Vector3(0, TREE_SIZE / 2, -0.6); // in front of world origin
+const GNAT_ORBIT_CENTER = TREE_LOCAL_POS.clone().add(new THREE.Vector3(0, TREE_SIZE * 1.3, 0));
 
 function buildPlaceholderTree() {
   const group = new THREE.Group();
@@ -36,7 +44,7 @@ function buildPlaceholderTree() {
     new THREE.BoxGeometry(TREE_SIZE, TREE_SIZE, TREE_SIZE),
     new THREE.MeshStandardMaterial({ color: 0x2f6e3f })
   );
-  cube.position.y = TREE_SIZE / 2;
+  cube.position.copy(TREE_LOCAL_POS);
   group.add(cube);
 
   return group;
@@ -59,19 +67,18 @@ function buildGnat() {
   return mesh;
 }
 
-function spawnGnats(anchor) {
-  const canopyCenter = GNAT_ORBIT_CENTER;
+function spawnGnats() {
   for (let i = 0; i < MAX_GNATS; i++) {
     const gnat = buildGnat();
-    gnat.position.copy(canopyCenter).add(new THREE.Vector3(
+    gnat.position.copy(GNAT_ORBIT_CENTER).add(new THREE.Vector3(
       (Math.random() - 0.5) * 0.6,
       (Math.random() - 0.5) * 0.4,
       (Math.random() - 0.5) * 0.6
     ));
-    gnat.userData.target = canopyCenter.clone();
+    gnat.userData.target = GNAT_ORBIT_CENTER.clone();
     gnat.userData.bobPhase = Math.random() * Math.PI * 2;
     gnat.userData.retargetTimer = 1 + Math.random() * 2;
-    anchor.add(gnat);
+    scene.add(gnat);
     gnats.push(gnat);
   }
 }
@@ -87,11 +94,10 @@ function killGnat(gnat) {
 
 // ── Gnat flight: sine-wave bob + wander/steer toward random points near canopy ──
 function updateGnats(dt, elapsed) {
-  const canopyCenter = GNAT_ORBIT_CENTER;
   for (const gnat of gnats) {
     gnat.userData.retargetTimer -= dt;
     if (gnat.userData.retargetTimer <= 0) {
-      gnat.userData.target = canopyCenter.clone().add(new THREE.Vector3(
+      gnat.userData.target = GNAT_ORBIT_CENTER.clone().add(new THREE.Vector3(
         (Math.random() - 0.5) * 0.6,
         (Math.random() - 0.5) * 0.4,
         (Math.random() - 0.5) * 0.6
@@ -105,16 +111,18 @@ function updateGnats(dt, elapsed) {
 
 // ── Tap-to-kill ──────────────────────────────────────────────────
 const raycaster = new THREE.Raycaster();
-function onTap(x, y) {
-  if (!placed) return;
-  const coords = new THREE.Vector2(
+function tapCoordsToNdc(x, y) {
+  return new THREE.Vector2(
     (x / window.innerWidth) * 2 - 1,
     -(y / window.innerHeight) * 2 + 1
   );
-  raycaster.setFromCamera(coords, camera);
+}
+
+function onTap(x, y) {
+  raycaster.setFromCamera(tapCoordsToNdc(x, y), camera);
   const hits = raycaster.intersectObjects(gnats, true);
   if (hits.length > 0) {
-    let hit = hits[0].object;
+    const hit = hits[0].object;
     // hit may be the invisible hit-sphere child — resolve to the gnat itself
     const gnat = hit.userData.isGnat ? hit : hit.parent;
     killGnat(gnat);
@@ -122,26 +130,20 @@ function onTap(x, y) {
 }
 
 // ── Placement ────────────────────────────────────────────────────
-// TODO: verify against current 8th Wall docs — this uses a single-tap
-// placement anchored in world space via XR8's SLAM tracking. If 8th Wall's
-// SDK exposes an explicit surface hit-test call (XR8.XrController.hitTest
-// or similar) at integration time, prefer that over the naive projection
-// below for better surface-accurate placement.
-function placeTree(x, y) {
+// The current open-source engine's documented pattern for "place content
+// where the user is" is XR8.XrController.recenter(): it resets the SLAM
+// world origin to the device's current position/orientation. The tree
+// sits at a fixed offset from that origin (TREE_LOCAL_POS), so recentering
+// on the first tap effectively drops it in front of wherever the user
+// tapped. (There's no separate plane-detection hit-test call documented
+// for the open-source engine as of this writing — if 8th Wall adds one,
+// swap it in here for surface-accurate placement.)
+function placeTree() {
   if (placed) return;
-  const coords = new THREE.Vector2(
-    (x / window.innerWidth) * 2 - 1,
-    -(y / window.innerHeight) * 2 + 1
-  );
-  raycaster.setFromCamera(coords, camera);
-  const dir = raycaster.ray.direction.clone();
-  const dist = 1.2; // meters in front of camera — placeholder until real hit-test lands
-  const point = camera.position.clone().add(dir.multiplyScalar(dist));
+  XR8.XrController.recenter();
 
-  treeGroup = buildPlaceholderTree();
-  treeGroup.position.copy(point);
-  scene.add(treeGroup);
-  spawnGnats(treeGroup);
+  treeGroup.visible = true;
+  spawnGnats();
 
   placed = true;
   placeHint.classList.add('hidden');
@@ -150,7 +152,7 @@ function placeTree(x, y) {
 
 function onScreenTap(e) {
   const touch = e.touches ? e.touches[0] : e;
-  if (!placed) placeTree(touch.clientX, touch.clientY);
+  if (!placed) placeTree();
   else onTap(touch.clientX, touch.clientY);
 }
 
@@ -168,38 +170,52 @@ const treeOfLifePipelineModule = () => ({
     const dirLight = new THREE.DirectionalLight(0xffffff, 0.6);
     dirLight.position.set(0.5, 1, 0.3);
     scene.add(dirLight);
-    // TODO: swap to XR8's xr-light equivalent for real-time environment
-    // matching once wiring against the live SDK — biggest realism win is
-    // ground/contact shadows under the tree, per spec notes.
+    // TODO: ground/contact shadows under the tree are the highest-impact
+    // realism win per spec notes — add once real geometry lands.
+
+    // Tree exists from the start but stays hidden at a fixed local offset
+    // until the user taps to place it (see placeTree()).
+    treeGroup = buildPlaceholderTree();
+    treeGroup.visible = false;
+    scene.add(treeGroup);
+
+    camera.position.set(0, 1.4, 0);
+    XR8.XrController.updateCameraProjectionMatrix({
+      origin: camera.position,
+      facing: camera.quaternion,
+    });
 
     loadingScreen.classList.add('hidden');
     placeHint.classList.remove('hidden');
 
+    canvas.addEventListener('touchmove', (e) => e.preventDefault());
     canvas.addEventListener('touchstart', onScreenTap, { passive: true });
     canvas.addEventListener('click', onScreenTap);
   },
 
-  onUpdate: ({ processCpuResult }) => {
-    const cameraTransform = processCpuResult.reality?.rotation ? processCpuResult.reality : null;
-    if (!cameraTransform) return;
-    const dt = Math.min(0.05, (performance.now() - (onUpdate._last || performance.now())) / 1000);
-    onUpdate._last = performance.now();
-    if (placed) updateGnats(dt, performance.now() / 1000);
+  onUpdate: () => {
+    if (!placed) return;
+    const now = performance.now();
+    const dt = lastUpdateTime === null ? 0 : Math.min(0.05, (now - lastUpdateTime) / 1000);
+    lastUpdateTime = now;
+    updateGnats(dt, now / 1000);
   },
 });
 
 function onxrloaded() {
   XR8.addCameraPipelineModules([
-    XR8.GlTextureRenderer.pipelineModule(),
-    XR8.Threejs.pipelineModule(),
-    XR8.XrController.pipelineModule(),
-    XRExtras.AlmostThere.pipelineModule(),
-    XRExtras.FullWindowCanvas.pipelineModule(),
-    XRExtras.Loading.pipelineModule(),
-    XRExtras.RuntimeError.pipelineModule(),
-    treeOfLifePipelineModule(),
+    XR8.GlTextureRenderer.pipelineModule(),      // Draws the camera feed.
+    XR8.Threejs.pipelineModule(),                // Creates a ThreeJS AR Scene.
+    XR8.XrController.pipelineModule(),           // Enables SLAM tracking.
+    LandingPage.pipelineModule(),                // Detects unsupported browsers and gives hints.
+    XRExtras.FullWindowCanvas.pipelineModule(),  // Modifies the canvas to fill the window.
+    XRExtras.Loading.pipelineModule(),           // Manages the loading screen on startup.
+    XRExtras.RuntimeError.pipelineModule(),      // Shows an error image on runtime error.
+    treeOfLifePipelineModule(),                  // Our scene + gnats + placement.
   ]);
+
+  const canvas = document.getElementById('camerafeed');
+  XR8.run({ canvas });
 }
 
-if (window.XR8) { onxrloaded(); }
-else { window.addEventListener('xrloaded', onxrloaded); }
+window.XR8 ? onxrloaded() : window.addEventListener('xrloaded', onxrloaded);
