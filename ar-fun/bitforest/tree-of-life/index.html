@@ -20,7 +20,8 @@
   <script type="importmap">
   {
     "imports": {
-      "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js"
+      "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+      "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
     }
   }
   </script>
@@ -40,6 +41,8 @@
   </div>
 
   <div id="place-hint" class="hidden">Tap to plant the tree</div>
+
+  <button id="recenter-btn" class="hidden">&#8635; Re-center</button>
 
   <script type="module" src="src/main.js"></script>
 </body>

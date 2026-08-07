@@ -13,3 +13,7 @@ html,body{margin:0;padding:0;width:100%;height:100%;overflow:hidden;background:#
 
 #place-hint{position:fixed;bottom:max(30px,env(safe-area-inset-bottom));left:50%;transform:translateX(-50%);z-index:10;font-size:13px;letter-spacing:.08em;text-transform:uppercase;color:#cfe8ff;background:rgba(6,20,39,.65);border:1px solid rgba(102,238,255,.35);border-radius:20px;padding:8px 18px;pointer-events:none}
 #place-hint.hidden{display:none}
+
+#recenter-btn{position:fixed;bottom:max(20px,env(safe-area-inset-bottom));right:max(16px,env(safe-area-inset-right));z-index:10;font-family:inherit;font-size:13px;font-weight:700;letter-spacing:.04em;color:#cfe8ff;background:rgba(6,20,39,.7);border:1px solid rgba(102,238,255,.45);border-radius:20px;padding:9px 16px;backdrop-filter:blur(4px)}
+#recenter-btn:active{background:rgba(102,238,255,.25)}
+#recenter-btn.hidden{display:none}
