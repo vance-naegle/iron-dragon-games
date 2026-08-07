@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Bitforest — Iron Dragon Games</title>
+  <style>
+    *{box-sizing:border-box}
+    html,body{margin:0;padding:0;background:#061427;color:#cfe8ff;font-family:Segoe UI,Roboto,system-ui,Arial;min-height:100%}
+    body{padding:40px 20px 60px;display:flex;flex-direction:column;align-items:center;text-align:center}
+    .wrap{max-width:640px;margin:0 auto}
+    .back{display:inline-block;margin-bottom:48px;font-size:12px;letter-spacing:.1em;text-transform:uppercase;color:#4a7a99;border:1px solid #0e2a45;border-radius:4px;padding:6px 14px;text-decoration:none}
+    .back:hover{color:#6ef;border-color:#6ef}
+    h1{margin:0 0 14px;font-size:clamp(32px,7vw,64px);font-weight:900;letter-spacing:.12em;text-transform:uppercase;color:#6ef;text-shadow:0 0 18px #6ef,0 0 48px #3af}
+    .sub{margin:0 0 32px;font-size:clamp(13px,2.4vw,18px);letter-spacing:.28em;text-transform:uppercase;color:#4a7a99}
+    p.intro{max-width:520px;font-size:14px;line-height:1.8;color:#7aaabf;margin:0 0 40px}
+
+    .card{width:100%;max-width:360px;background:#081c30;border:1px solid #000;border-radius:12px;overflow:hidden;transition:transform .15s,box-shadow .15s}
+    .card:hover{transform:translateY(-4px);box-shadow:0 8px 32px rgba(102,238,255,.15)}
+    .thumb{height:160px;position:relative;overflow:hidden;background:
+      linear-gradient(rgba(102,238,255,.08) 1px,transparent 1px) 0 0/100% 20px,
+      linear-gradient(90deg,rgba(102,238,255,.08) 1px,transparent 1px) 0 0/20px 100%,
+      #051020;display:flex;align-items:center;justify-content:center}
+    .thumb-mark{font-size:40px;line-height:1}
+    .info{padding:20px 22px 24px;text-align:left}
+    .info h2{margin:0 0 10px;font-size:18px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:#6ef}
+    .info p{margin:0 0 18px;font-size:13px;line-height:1.7;color:#6a8fa8}
+    .play-btn{display:inline-block;font-family:inherit;font-size:12px;font-weight:700;letter-spacing:.18em;text-transform:uppercase;color:#061427;background:#6ef;border-radius:5px;padding:10px 28px;text-decoration:none;transition:background .14s,transform .1s,box-shadow .14s;box-shadow:0 0 14px rgba(102,238,255,.45)}
+    .play-btn:hover{background:#fff;transform:scale(1.05);box-shadow:0 0 28px rgba(102,238,255,.8)}
+    .play-btn:active{transform:scale(0.97)}
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <a class="back" href="../index.html">← Back to AR Fun</a>
+    <h1>Bitforest</h1>
+    <p class="sub">SLAM AR Experiences</p>
+    <p class="intro">A growing series of camera-based, world-tracked AR experiences. Point your phone, place the scene in your space, and explore.</p>
+
+    <div class="card">
+      <div class="thumb"><div class="thumb-mark">🌳</div></div>
+      <div class="info">
+        <h2>Tree of Life</h2>
+        <p>Plant a Tree of Life in your space and defend its fruit — tap the gnats swarming the canopy to rack up your score.</p>
+        <a class="play-btn" href="tree-of-life/index.html">Play Now</a>
+      </div>
+    </div>
+  </div>
+</body>
+</html>
