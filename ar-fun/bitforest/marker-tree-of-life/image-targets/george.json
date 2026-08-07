@@ -1,0 +1,23 @@
+{
+  "imagePath": "image-targets/george_luminance.jpg",
+  "metadata": null,
+  "name": "george",
+  "type": "PLANAR",
+  "properties": {
+    "left": 125,
+    "top": 0,
+    "width": 750,
+    "height": 1000,
+    "isRotated": true,
+    "originalWidth": 1000,
+    "originalHeight": 1000
+  },
+  "resources": {
+    "originalImage": "george_original.jpg",
+    "croppedImage": "george_cropped.jpg",
+    "thumbnailImage": "george_thumbnail.jpg",
+    "luminanceImage": "george_luminance.jpg"
+  },
+  "created": 1786133916384,
+  "updated": 1786133916384
+}

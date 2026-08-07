@@ -15,7 +15,8 @@
     .sub{margin:0 0 32px;font-size:clamp(13px,2.4vw,18px);letter-spacing:.28em;text-transform:uppercase;color:#4a7a99}
     p.intro{max-width:520px;font-size:14px;line-height:1.8;color:#7aaabf;margin:0 0 40px}
 
-    .card{width:100%;max-width:360px;background:#081c30;border:1px solid #000;border-radius:12px;overflow:hidden;transition:transform .15s,box-shadow .15s}
+    .cards{display:flex;flex-wrap:wrap;gap:20px;justify-content:center;width:100%}
+    .card{width:100%;max-width:320px;background:#081c30;border:1px solid #000;border-radius:12px;overflow:hidden;transition:transform .15s,box-shadow .15s}
     .card:hover{transform:translateY(-4px);box-shadow:0 8px 32px rgba(102,238,255,.15)}
     .thumb{height:160px;position:relative;overflow:hidden;background:
       linear-gradient(rgba(102,238,255,.08) 1px,transparent 1px) 0 0/100% 20px,
@@ -34,15 +35,26 @@
   <div class="wrap">
     <a class="back" href="../index.html">← Back to AR Fun</a>
     <h1>Bitforest</h1>
-    <p class="sub">SLAM AR Experiences</p>
-    <p class="intro">A growing series of camera-based, world-tracked AR experiences. Point your phone, place the scene in your space, and explore.</p>
+    <p class="sub">Camera AR Experiences</p>
+    <p class="intro">A growing series of camera-based AR experiences — some world-tracked, some marker-driven. Point your phone and explore.</p>
 
-    <div class="card">
-      <div class="thumb"><div class="thumb-mark">🌳</div></div>
-      <div class="info">
-        <h2>Tree of Life</h2>
-        <p>Plant a Tree of Life in your space and defend its fruit — tap the gnats swarming the canopy to rack up your score.</p>
-        <a class="play-btn" href="tree-of-life/index.html">Play Now</a>
+    <div class="cards">
+      <div class="card">
+        <div class="thumb"><div class="thumb-mark">🌳</div></div>
+        <div class="info">
+          <h2>Tree of Life</h2>
+          <p>Plant a Tree of Life in your space and defend its fruit — tap the gnats swarming the canopy to rack up your score.</p>
+          <a class="play-btn" href="tree-of-life/index.html">Play Now</a>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="thumb"><div class="thumb-mark">🎯</div></div>
+        <div class="info">
+          <h2>Marker Tree of Life</h2>
+          <p>The same Tree of Life scene, anchored to a printed marker image instead of the floor — point your camera at the marker to bring it to life.</p>
+          <a class="play-btn" href="marker-tree-of-life/index.html">Play Now</a>
+        </div>
       </div>
     </div>
   </div>
