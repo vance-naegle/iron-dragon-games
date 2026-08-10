@@ -222,35 +222,129 @@ function buildJungleRoom() {
   return group;
 }
 
-// ── Pre-placement scan grid ────────────────────────────────────────
-// Same technique as ../../bitforest/tree-of-life: a placement *preview*,
-// not real surface detection (the open-source engine doesn't document a
-// plane-detection API — see that file for details). Follows the tracked
-// camera so the user can see roughly where the doorway will land, at the
-// same ground offset it's actually placed at, before committing to a tap.
-const SCAN_GRID_DISTANCE = 1.0 * SCALE; // matches GROUND_POS.z
-let scanGrid = null;
+// ── Pre-placement scan visualization ────────────────────────────────
+// Unlike the earlier camera-following GridHelper (a fake placeholder that
+// didn't reflect anything real), this renders 8th Wall's actual SLAM
+// feature-point cloud — the same "world points" data the tracker itself
+// uses to understand the room. Turned on via `enableWorldPoints: true` in
+// XrController.configure() (see onxrloaded()); each frame it's read back
+// from processCpuResult.reality.worldPoints and copied into a THREE.Points
+// cloud. There's still no documented plane/mesh API in the open-source
+// engine, so this is the closest thing to "show me what the scanner sees"
+// available — real tracked points, not a synthesized surface.
+const MAX_WORLD_POINTS = 1500;
+let worldPointsCloud = null;
+let worldPointsGeometry = null;
+let loggedWorldPointSample = false; // one-time console.debug to confirm point shape on-device
 
-function buildScanGrid() {
-  const grid = new THREE.GridHelper(1.2 * SCALE, 12, 0x6ef, 0x2a5570);
-  grid.material.transparent = true;
-  grid.material.opacity = 0.5;
-  return grid;
+// A soft round sprite for each point — THREE.Points draws hard-edged
+// squares with no texture, which is what read as "pixelated" on-device.
+function buildDotTexture() {
+  const size = 32;
+  const canvas = document.createElement('canvas');
+  canvas.width = canvas.height = size;
+  const ctx = canvas.getContext('2d');
+  const gradient = ctx.createRadialGradient(size / 2, size / 2, 0, size / 2, size / 2, size / 2);
+  gradient.addColorStop(0, 'rgba(255,255,255,1)');
+  gradient.addColorStop(0.5, 'rgba(255,255,255,0.9)');
+  gradient.addColorStop(1, 'rgba(255,255,255,0)');
+  ctx.fillStyle = gradient;
+  ctx.fillRect(0, 0, size, size);
+  return new THREE.CanvasTexture(canvas);
 }
 
-function updateScanGrid(elapsed) {
-  const forward = new THREE.Vector3();
-  camera.getWorldDirection(forward);
-  forward.y = 0;
-  if (forward.lengthSq() < 1e-6) forward.set(0, 0, -1);
-  forward.normalize();
+function buildWorldPointsCloud() {
+  worldPointsGeometry = new THREE.BufferGeometry();
+  const positions = new Float32Array(MAX_WORLD_POINTS * 3);
+  worldPointsGeometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+  worldPointsGeometry.setDrawRange(0, 0); // nothing until the first real points arrive
 
-  scanGrid.position.set(
-    camera.position.x + forward.x * SCAN_GRID_DISTANCE,
-    0,
-    camera.position.z + forward.z * SCAN_GRID_DISTANCE
-  );
-  scanGrid.material.opacity = 0.35 + 0.25 * (0.5 + 0.5 * Math.sin(elapsed * 3));
+  // sizeAttenuation:false fixes size in screen-space pixels regardless of
+  // distance — with attenuation on, SLAM points that land close to the
+  // lens (common noise) blew up into huge blocky squares.
+  const material = new THREE.PointsMaterial({
+    color: 0x6ef,
+    map: buildDotTexture(),
+    size: 7,
+    sizeAttenuation: false,
+    transparent: true,
+    alphaTest: 0.05,
+    depthWrite: false,
+    opacity: 0.9,
+  });
+  return new THREE.Points(worldPointsGeometry, material);
+}
+
+function updateWorldPointsCloud(points) {
+  if (!points || !points.length) {
+    worldPointsGeometry.setDrawRange(0, 0);
+    return;
+  }
+  if (!loggedWorldPointSample) {
+    console.debug('[doorway-jungle] sample world point:', points[0]);
+    loggedWorldPointSample = true;
+  }
+
+  const positions = worldPointsGeometry.attributes.position.array;
+  let count = 0;
+  for (let i = 0; i < points.length && count < MAX_WORLD_POINTS; i++) {
+    // Defensive: docs describe worldPoints as {x,y,z}, but fall back to a
+    // nested .position in case a given engine version wraps it differently.
+    const src = points[i].position || points[i];
+    if (typeof src.x !== 'number') continue;
+    positions[count * 3] = src.x;
+    positions[count * 3 + 1] = src.y;
+    positions[count * 3 + 2] = src.z;
+    count++;
+  }
+  worldPointsGeometry.attributes.position.needsUpdate = true;
+  worldPointsGeometry.setDrawRange(0, count);
+  latestWorldPointCount = count;
+}
+
+// ── Placement readiness gate ────────────────────────────────────────
+// Placing (recenter() + anchoring doorGroup) while tracking hasn't locked
+// on yet bakes that bad initial estimate in permanently — the "frozen"
+// content is only as good as the pose it was frozen to. This gates the
+// tap behind a stability check instead of accepting it immediately.
+//
+// 8th Wall exposes processCpuResult.reality.trackingStatus/trackingReason,
+// but its current docs site is a client-rendered SPA that couldn't be
+// crawled to confirm the exact enum strings (see console.debug below to
+// check on-device). Rather than gate on an unverified exact match — which
+// could silently block placement forever if the guess is wrong — this
+// combines it with a signal already confirmed working this session (world
+// point count) and a minimum settle time, and only ever uses trackingStatus
+// to make things WORSE (block a known-bad state), never to block on its own
+// if the shape doesn't match what's expected.
+const MIN_STABILIZE_MS = 2000;
+const MIN_STABLE_POINTS = 30;
+const BAD_TRACKING_TOKENS = ['LIMITED', 'NOT_TRACKING', 'INITIALIZING', 'RELOCALIZING'];
+
+let xrStartTime = 0;
+let latestWorldPointCount = 0;
+let trackingReady = false;
+let loggedTrackingStatusSample = false;
+
+function isTrackingStatusBad(reality) {
+  const raw = reality?.trackingStatus;
+  if (!raw) return false; // unrecognized/absent shape — don't block on it
+  if (!loggedTrackingStatusSample) {
+    console.debug('[doorway-jungle] sample trackingStatus:', raw, 'trackingReason:', reality?.trackingReason);
+    loggedTrackingStatusSample = true;
+  }
+  const status = (typeof raw === 'string' ? raw : raw.status || raw.reason || '').toString().toUpperCase();
+  return BAD_TRACKING_TOKENS.some((bad) => status.includes(bad));
+}
+
+function updateTrackingReadiness(reality) {
+  const settled = performance.now() - xrStartTime >= MIN_STABILIZE_MS;
+  const enoughPoints = latestWorldPointCount >= MIN_STABLE_POINTS;
+  const wasReady = trackingReady;
+  trackingReady = settled && enoughPoints && !isTrackingStatusBad(reality);
+  if (trackingReady !== wasReady) {
+    placeHint.textContent = trackingReady ? 'Tap to open the doorway' : 'Scanning your space… hold steady';
+  }
 }
 
 function buildJungle(group) {
@@ -273,14 +367,14 @@ function placeDoorway() {
   XR8.XrController.recenter();
 
   doorGroup.visible = true;
-  scanGrid.visible = false;
+  worldPointsCloud.visible = false;
   placed = true;
   placeHint.classList.add('hidden');
   recenterBtn.classList.remove('hidden');
 }
 
 function onScreenTap() {
-  if (!placed) placeDoorway();
+  if (!placed && trackingReady) placeDoorway();
 }
 
 // XR8.XrController.recenter() resets the WHOLE tracked pose (position +
@@ -317,10 +411,28 @@ const doorwayJunglePipelineModule = () => ({
     dirLight.position.set(0.5, 1, 0.3);
     scene.add(dirLight);
 
+    // FROZEN CONTENT CONTRACT: doorGroup's transform is set exactly once
+    // here (and, optionally, once more if the user taps Recenter — see
+    // that handler below). Nothing in onUpdate() or anywhere else in this
+    // file ever touches it. SLAM keeps running for the entire session, but
+    // only to drive `camera`'s position/quaternion each frame (that update
+    // happens automatically inside XR8.Threejs.pipelineModule(), outside
+    // our code) — the placed content itself never moves on its own.
     doorGroup = new THREE.Group();
     doorGroup.position.copy(GROUND_POS);
     doorGroup.visible = false;
     scene.add(doorGroup);
+
+    // PIVOT ALIGNMENT: buildDoorFrame()/buildHiderWall() below are built
+    // symmetric around z=0 (the frame is FRAME_DEPTH thick, spanning
+    // ±FRAME_DEPTH/2), so z=0 in their own local space is the frame's
+    // depth-CENTER, not its front (viewer-facing) face. `content` shifts
+    // everything back by half that depth so doorGroup's own local (0,0,0)
+    // — ground level, centered left-right — lands exactly on the front of
+    // the doorway threshold, not somewhere inside the frame.
+    const content = new THREE.Group();
+    content.position.z = -FRAME_DEPTH / 2;
+    doorGroup.add(content);
 
     // Dedicated interior light — the ambient/directional pair above lights
     // the whole scene evenly, but the enclosed room reads darker than the
@@ -329,14 +441,14 @@ const doorwayJunglePipelineModule = () => ({
     // frame or anything outside it.
     const roomLight = new THREE.PointLight(0xeafbd8, 1.4, ROOM_DEPTH * 1.5, 2);
     roomLight.position.set(0, ROOM_HEIGHT - 0.3 * SCALE, ROOM_CENTER_Z);
-    doorGroup.add(roomLight);
+    content.add(roomLight);
 
-    doorGroup.add(buildDoorFrame());
-    doorGroup.add(buildHiderWall());
-    buildJungle(doorGroup);
+    content.add(buildDoorFrame());
+    content.add(buildHiderWall());
+    buildJungle(content);
 
-    scanGrid = buildScanGrid();
-    scene.add(scanGrid);
+    worldPointsCloud = buildWorldPointsCloud();
+    scene.add(worldPointsCloud);
 
     camera.position.set(0, 1.4, 0);
     XR8.XrController.updateCameraProjectionMatrix({
@@ -344,7 +456,9 @@ const doorwayJunglePipelineModule = () => ({
       facing: camera.quaternion,
     });
 
+    xrStartTime = performance.now();
     loadingScreen.classList.add('hidden');
+    placeHint.textContent = 'Scanning your space… hold steady';
     placeHint.classList.remove('hidden');
 
     canvas.addEventListener('touchmove', (e) => e.preventDefault());
@@ -352,8 +466,16 @@ const doorwayJunglePipelineModule = () => ({
     canvas.addEventListener('click', onScreenTap);
   },
 
-  onUpdate: () => {
-    if (!placed) updateScanGrid(performance.now() / 1000);
+  // Runs every tracked frame. Pre-placement, it feeds the live world-point
+  // cloud so the user sees real scan data while aiming. Post-placement it
+  // deliberately does nothing — see the FROZEN CONTENT CONTRACT comment
+  // above doorGroup's creation. SLAM tracking itself never stops; only our
+  // use of its per-frame reality data does.
+  onUpdate: ({ processCpuResult }) => {
+    if (!placed) {
+      updateWorldPointsCloud(processCpuResult?.reality?.worldPoints);
+      updateTrackingReadiness(processCpuResult?.reality);
+    }
   },
 });
 
@@ -361,9 +483,12 @@ function onxrloaded() {
   // 'absolute' returns camera/content position in real meters, fixed once
   // scale is estimated — unlike the default 'responsive' mode, which
   // isn't metrically guaranteed and can re-estimate scale differently on
-  // each recenter(). Must be set before XR8.XrController.pipelineModule()
-  // and XR8.run() per XR8.XrController.configure()'s docs.
-  XR8.XrController.configure({ scale: 'absolute' });
+  // each recenter(). enableWorldPoints turns on the real SLAM feature-
+  // point cloud (read back in onUpdate → processCpuResult.reality.
+  // worldPoints) that drives the pre-placement scan visualization. Both
+  // must be set before XR8.XrController.pipelineModule() and XR8.run()
+  // per XR8.XrController.configure()'s docs.
+  XR8.XrController.configure({ scale: 'absolute', enableWorldPoints: true });
 
   XR8.addCameraPipelineModules([
     XR8.GlTextureRenderer.pipelineModule(),      // Draws the camera feed.
