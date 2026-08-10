@@ -31,11 +31,19 @@ const loadingScreen = document.getElementById('loading-screen');
 const recenterBtn = document.getElementById('recenter-btn');
 
 // ── Doorway geometry ─────────────────────────────────────────────
-const DOOR_WIDTH = 0.9;
-const DOOR_HEIGHT = 2.0;
-const FRAME_THICKNESS = 0.08;
-const FRAME_DEPTH = 0.06;
-const GROUND_POS = new THREE.Vector3(0, 0, -1.0); // ground position, in front of world origin
+// All sizes below are real-world meters — see the scale:'absolute' config
+// in onxrloaded(). With the default 'responsive' scale mode (what this
+// project used before), 8th Wall doesn't guarantee metric accuracy and
+// can re-estimate scale differently on each recenter() — that was the
+// "shrinking / hobbit portal" effect after using the re-center button.
+// 'absolute' mode fixes scale to real meters once, so recentering only
+// ever affects position/facing, never size.
+const DOOR_HEIGHT = 7 * 0.3048; // 7 feet, in meters
+const SCALE = DOOR_HEIGHT / 2.0; // keeps everything else's prior proportions relative to the old 2.0m door height
+const DOOR_WIDTH = 0.9 * SCALE;
+const FRAME_THICKNESS = 0.08 * SCALE;
+const FRAME_DEPTH = 0.06 * SCALE;
+const GROUND_POS = new THREE.Vector3(0, 0, -1.0 * SCALE); // ground position, in front of world origin
 
 // Room the jungle content sits inside. The doorway/hider wall (below)
 // already blocks every direct sightline from outside except through its
@@ -46,9 +54,9 @@ const GROUND_POS = new THREE.Vector3(0, 0, -1.0); // ground position, in front o
 // plain opaque (DoubleSide, for safety against normal-direction mistakes)
 // material is correct and sufficient. Without them, looking sideways/up/
 // back while standing inside had nothing to block the real camera feed.
-const ROOM_WIDTH = 3.4;
-const ROOM_HEIGHT = 3.2;
-const ROOM_DEPTH = 4.0;
+const ROOM_WIDTH = 3.4 * SCALE;
+const ROOM_HEIGHT = 3.2 * SCALE;
+const ROOM_DEPTH = 4.0 * SCALE;
 
 // The hider block (below) occupies roughly z:[-0.30, +0.05] — a shallow
 // "doorway hallway." The room's own solid walls start where that hallway
@@ -56,7 +64,7 @@ const ROOM_DEPTH = 4.0;
 // the two caused the room's near wall edges to fight with the hider's
 // invisible caps for the same space, showing up as the wall right at the
 // doorway looking transparent from inside.
-const HALLWAY_DEPTH = 0.4;
+const HALLWAY_DEPTH = 0.4 * SCALE;
 const ROOM_FRONT_Z = -HALLWAY_DEPTH;
 const ROOM_BACK_Z = ROOM_FRONT_Z - ROOM_DEPTH;
 const ROOM_CENTER_Z = (ROOM_FRONT_Z + ROOM_BACK_Z) / 2;
@@ -100,10 +108,10 @@ function buildDoorFrame() {
 // "see through on both sides from inside" reports. Extruding the same
 // shape+hole into a solid block removes the seam entirely.
 function buildHiderWall() {
-  const wallWidth = ROOM_WIDTH + 1.0;
-  const wallHeight = ROOM_HEIGHT + 1.0;
-  const hiderDepth = HALLWAY_DEPTH - 0.05; // stays short of ROOM_FRONT_Z, leaving a small buffer
-  const groundY = -0.01; // slightly below y=0 so this block's bottom face
+  const wallWidth = ROOM_WIDTH + 1.0 * SCALE;
+  const wallHeight = ROOM_HEIGHT + 1.0 * SCALE;
+  const hiderDepth = HALLWAY_DEPTH - 0.05 * SCALE; // stays short of ROOM_FRONT_Z, leaving a small buffer
+  const groundY = -0.01 * SCALE; // slightly below y=0 so this block's bottom face
   // isn't exactly coplanar with the ground plane mesh — two coincident
   // surfaces at the same height z-fight (flicker) against each other.
 
@@ -134,7 +142,7 @@ function buildHiderWall() {
   const wall = new THREE.Mesh(geometry, [capMaterial, sideMaterial]);
   // Extrudes from local z=0 to z=+hiderDepth; shift so it spans from just
   // in front of the frame to well past the room's near boundary (z=0).
-  wall.position.z = 0.05 - hiderDepth;
+  wall.position.z = 0.05 * SCALE - hiderDepth;
   return wall;
 }
 
@@ -214,15 +222,46 @@ function buildJungleRoom() {
   return group;
 }
 
+// ── Pre-placement scan grid ────────────────────────────────────────
+// Same technique as ../../bitforest/tree-of-life: a placement *preview*,
+// not real surface detection (the open-source engine doesn't document a
+// plane-detection API — see that file for details). Follows the tracked
+// camera so the user can see roughly where the doorway will land, at the
+// same ground offset it's actually placed at, before committing to a tap.
+const SCAN_GRID_DISTANCE = 1.0 * SCALE; // matches GROUND_POS.z
+let scanGrid = null;
+
+function buildScanGrid() {
+  const grid = new THREE.GridHelper(1.2 * SCALE, 12, 0x6ef, 0x2a5570);
+  grid.material.transparent = true;
+  grid.material.opacity = 0.5;
+  return grid;
+}
+
+function updateScanGrid(elapsed) {
+  const forward = new THREE.Vector3();
+  camera.getWorldDirection(forward);
+  forward.y = 0;
+  if (forward.lengthSq() < 1e-6) forward.set(0, 0, -1);
+  forward.normalize();
+
+  scanGrid.position.set(
+    camera.position.x + forward.x * SCAN_GRID_DISTANCE,
+    0,
+    camera.position.z + forward.z * SCAN_GRID_DISTANCE
+  );
+  scanGrid.material.opacity = 0.35 + 0.25 * (0.5 + 0.5 * Math.sin(elapsed * 3));
+}
+
 function buildJungle(group) {
   group.add(buildJungleRoom());
 
-  loadJungleProp(group, 'Twisted Tree.glb', 2.6, -0.5, -1.5 - HALLWAY_DEPTH, 0.6);
-  loadJungleProp(group, 'Twisted Tree-7PDBpElkQr.glb', 2.3, 0.7, -2.6 - HALLWAY_DEPTH, 2.4);
-  loadJungleProp(group, 'Bush.glb', 0.5, -0.9, -0.7 - HALLWAY_DEPTH, 1.1);
-  loadJungleProp(group, 'Fern.glb', 0.4, 0.5, -0.6 - HALLWAY_DEPTH, 0.3);
-  loadJungleProp(group, 'Plant Big.glb', 0.6, -0.3, -1.9 - HALLWAY_DEPTH, 3.0);
-  loadJungleProp(group, 'Mushroom.glb', 0.25, 0.3, -1.1 - HALLWAY_DEPTH, 0);
+  loadJungleProp(group, 'Twisted Tree.glb', 2.6 * SCALE, -0.5 * SCALE, -1.5 * SCALE - HALLWAY_DEPTH, 0.6);
+  loadJungleProp(group, 'Twisted Tree-7PDBpElkQr.glb', 2.3 * SCALE, 0.7 * SCALE, -2.6 * SCALE - HALLWAY_DEPTH, 2.4);
+  loadJungleProp(group, 'Bush.glb', 0.5 * SCALE, -0.9 * SCALE, -0.7 * SCALE - HALLWAY_DEPTH, 1.1);
+  loadJungleProp(group, 'Fern.glb', 0.4 * SCALE, 0.5 * SCALE, -0.6 * SCALE - HALLWAY_DEPTH, 0.3);
+  loadJungleProp(group, 'Plant Big.glb', 0.6 * SCALE, -0.3 * SCALE, -1.9 * SCALE - HALLWAY_DEPTH, 3.0);
+  loadJungleProp(group, 'Mushroom.glb', 0.25 * SCALE, 0.3 * SCALE, -1.1 * SCALE - HALLWAY_DEPTH, 0);
 }
 
 // ── Placement ────────────────────────────────────────────────────
@@ -234,6 +273,7 @@ function placeDoorway() {
   XR8.XrController.recenter();
 
   doorGroup.visible = true;
+  scanGrid.visible = false;
   placed = true;
   placeHint.classList.add('hidden');
   recenterBtn.classList.remove('hidden');
@@ -243,9 +283,21 @@ function onScreenTap() {
   if (!placed) placeDoorway();
 }
 
+// XR8.XrController.recenter() resets the WHOLE tracked pose (position +
+// orientation) to wherever the camera currently is — including its
+// height. Since doorGroup sits at a fixed offset from that origin,
+// pressing this while holding the phone at a different height than the
+// original placement made the doorway visibly jump to a new floor
+// height each time, on top of just re-centering it horizontally. Capture
+// the camera's height in the OLD reference frame right before
+// recentering, then shift doorGroup by the same amount in the NEW frame
+// so its real-world height stays put — only position/facing re-center,
+// not the anchor height.
 recenterBtn.addEventListener('click', () => {
   if (!placed) return;
+  const yBeforeRecenter = camera.position.y;
   XR8.XrController.recenter();
+  doorGroup.position.y = GROUND_POS.y - yBeforeRecenter;
 });
 
 // ── 8th Wall pipeline module ─────────────────────────────────────
@@ -258,7 +310,7 @@ const doorwayJunglePipelineModule = () => ({
     camera = xrCamera;
     renderer = xrRenderer;
 
-    scene.fog = new THREE.Fog(0x0b2a12, 1.2, 6);
+    scene.fog = new THREE.Fog(0x0b2a12, 1.2 * SCALE, 6 * SCALE);
 
     scene.add(new THREE.AmbientLight(0x8ad88a, 0.8));
     const dirLight = new THREE.DirectionalLight(0xdff0c0, 0.7);
@@ -276,12 +328,15 @@ const doorwayJunglePipelineModule = () => ({
     // brighten the interior specifically without blowing out the doorway
     // frame or anything outside it.
     const roomLight = new THREE.PointLight(0xeafbd8, 1.4, ROOM_DEPTH * 1.5, 2);
-    roomLight.position.set(0, ROOM_HEIGHT - 0.3, ROOM_CENTER_Z);
+    roomLight.position.set(0, ROOM_HEIGHT - 0.3 * SCALE, ROOM_CENTER_Z);
     doorGroup.add(roomLight);
 
     doorGroup.add(buildDoorFrame());
     doorGroup.add(buildHiderWall());
     buildJungle(doorGroup);
+
+    scanGrid = buildScanGrid();
+    scene.add(scanGrid);
 
     camera.position.set(0, 1.4, 0);
     XR8.XrController.updateCameraProjectionMatrix({
@@ -296,9 +351,20 @@ const doorwayJunglePipelineModule = () => ({
     canvas.addEventListener('touchstart', onScreenTap, { passive: true });
     canvas.addEventListener('click', onScreenTap);
   },
+
+  onUpdate: () => {
+    if (!placed) updateScanGrid(performance.now() / 1000);
+  },
 });
 
 function onxrloaded() {
+  // 'absolute' returns camera/content position in real meters, fixed once
+  // scale is estimated — unlike the default 'responsive' mode, which
+  // isn't metrically guaranteed and can re-estimate scale differently on
+  // each recenter(). Must be set before XR8.XrController.pipelineModule()
+  // and XR8.run() per XR8.XrController.configure()'s docs.
+  XR8.XrController.configure({ scale: 'absolute' });
+
   XR8.addCameraPipelineModules([
     XR8.GlTextureRenderer.pipelineModule(),      // Draws the camera feed.
     XR8.Threejs.pipelineModule(),                // Creates a ThreeJS AR Scene.
