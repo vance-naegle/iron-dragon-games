@@ -29,6 +29,9 @@ let placed = false;
 const placeHint = document.getElementById('place-hint');
 const loadingScreen = document.getElementById('loading-screen');
 const recenterBtn = document.getElementById('recenter-btn');
+const adjustPanel = document.getElementById('adjust-panel');
+const heightUpBtn = document.getElementById('height-up-btn');
+const heightDownBtn = document.getElementById('height-down-btn');
 
 // ── Doorway geometry ─────────────────────────────────────────────
 // All sizes below are real-world meters — see the scale:'absolute' config
@@ -43,7 +46,6 @@ const SCALE = DOOR_HEIGHT / 2.0; // keeps everything else's prior proportions re
 const DOOR_WIDTH = 0.9 * SCALE;
 const FRAME_THICKNESS = 0.08 * SCALE;
 const FRAME_DEPTH = 0.06 * SCALE;
-const GROUND_POS = new THREE.Vector3(0, 0, -1.0 * SCALE); // ground position, in front of world origin
 
 // Room the jungle content sits inside. The doorway/hider wall (below)
 // already blocks every direct sightline from outside except through its
@@ -228,13 +230,25 @@ function buildJungleRoom() {
 // feature-point cloud — the same "world points" data the tracker itself
 // uses to understand the room. Turned on via `enableWorldPoints: true` in
 // XrController.configure() (see onxrloaded()); each frame it's read back
-// from processCpuResult.reality.worldPoints and copied into a THREE.Points
-// cloud. There's still no documented plane/mesh API in the open-source
-// engine, so this is the closest thing to "show me what the scanner sees"
-// available — real tracked points, not a synthesized surface.
-const MAX_WORLD_POINTS = 1500;
+// from processCpuResult.reality.worldPoints. There's still no documented
+// plane/mesh API in the open-source engine, so this is the closest thing
+// to "show me what the scanner sees" available — real tracked points, not
+// a synthesized surface.
+//
+// reality.worldPoints only reports points currently in view, not a
+// persistent map — on-device testing showed dots vanishing on every pan,
+// and the placement-readiness gate (below) flickering back to "scanning"
+// as the in-view count dipped below its threshold each time the user
+// panned (exactly the motion the "scan your space" hint asks for). Fixed
+// by accumulating into our own persistent buffer instead of overwriting it
+// every frame — points, once seen, stay in the cloud/readiness count
+// regardless of where the camera currently points.
+const MAX_WORLD_POINTS = 800; // ring-buffer cap once a scan has run a while
+const POINT_DEDUP_DIST = 0.03 * SCALE; // ~3cm — skip points already close to an accumulated one
 let worldPointsCloud = null;
 let worldPointsGeometry = null;
+let accumulatedPoints = []; // {x,y,z}[] — persists across frames, see above
+let ringWriteIndex = 0; // once at MAX_WORLD_POINTS, recycle oldest slots
 let loggedWorldPointSample = false; // one-time console.debug to confirm point shape on-device
 
 // A soft round sprite for each point — THREE.Points draws hard-edged
@@ -275,31 +289,47 @@ function buildWorldPointsCloud() {
   return new THREE.Points(worldPointsGeometry, material);
 }
 
-function updateWorldPointsCloud(points) {
-  if (!points || !points.length) {
-    worldPointsGeometry.setDrawRange(0, 0);
-    return;
+function isNearAccumulatedPoint(x, y, z) {
+  const d2 = POINT_DEDUP_DIST * POINT_DEDUP_DIST;
+  for (let i = 0; i < accumulatedPoints.length; i++) {
+    const p = accumulatedPoints[i];
+    const dx = p.x - x, dy = p.y - y, dz = p.z - z;
+    if (dx * dx + dy * dy + dz * dz < d2) return true;
   }
-  if (!loggedWorldPointSample) {
-    console.debug('[doorway-jungle] sample world point:', points[0]);
-    loggedWorldPointSample = true;
+  return false;
+}
+
+function updateWorldPointsCloud(points) {
+  if (points && points.length) {
+    if (!loggedWorldPointSample) {
+      console.debug('[doorway-jungle] sample world point:', points[0]);
+      loggedWorldPointSample = true;
+    }
+    for (let i = 0; i < points.length; i++) {
+      // Defensive: docs describe worldPoints as {x,y,z}, but fall back to a
+      // nested .position in case a given engine version wraps it differently.
+      const src = points[i].position || points[i];
+      if (typeof src.x !== 'number') continue;
+      if (isNearAccumulatedPoint(src.x, src.y, src.z)) continue;
+
+      if (accumulatedPoints.length < MAX_WORLD_POINTS) {
+        accumulatedPoints.push({ x: src.x, y: src.y, z: src.z });
+      } else {
+        accumulatedPoints[ringWriteIndex] = { x: src.x, y: src.y, z: src.z };
+        ringWriteIndex = (ringWriteIndex + 1) % MAX_WORLD_POINTS;
+      }
+    }
   }
 
   const positions = worldPointsGeometry.attributes.position.array;
-  let count = 0;
-  for (let i = 0; i < points.length && count < MAX_WORLD_POINTS; i++) {
-    // Defensive: docs describe worldPoints as {x,y,z}, but fall back to a
-    // nested .position in case a given engine version wraps it differently.
-    const src = points[i].position || points[i];
-    if (typeof src.x !== 'number') continue;
-    positions[count * 3] = src.x;
-    positions[count * 3 + 1] = src.y;
-    positions[count * 3 + 2] = src.z;
-    count++;
+  for (let i = 0; i < accumulatedPoints.length; i++) {
+    positions[i * 3] = accumulatedPoints[i].x;
+    positions[i * 3 + 1] = accumulatedPoints[i].y;
+    positions[i * 3 + 2] = accumulatedPoints[i].z;
   }
   worldPointsGeometry.attributes.position.needsUpdate = true;
-  worldPointsGeometry.setDrawRange(0, count);
-  latestWorldPointCount = count;
+  worldPointsGeometry.setDrawRange(0, accumulatedPoints.length);
+  latestWorldPointCount = accumulatedPoints.length;
 }
 
 // ── Placement readiness gate ────────────────────────────────────────
@@ -341,10 +371,91 @@ function updateTrackingReadiness(reality) {
   const settled = performance.now() - xrStartTime >= MIN_STABILIZE_MS;
   const enoughPoints = latestWorldPointCount >= MIN_STABLE_POINTS;
   const wasReady = trackingReady;
-  trackingReady = settled && enoughPoints && !isTrackingStatusBad(reality);
+  trackingReady = settled && enoughPoints && floorY !== null && !isTrackingStatusBad(reality);
   if (trackingReady !== wasReady) {
-    placeHint.textContent = trackingReady ? 'Tap to open the doorway' : 'Scanning your space… hold steady';
+    placeHint.textContent = trackingReady ? 'Tap to open the doorway' : 'Slowly pan your phone around the room to scan it';
   }
+}
+
+// ── Floor preview plane ─────────────────────────────────────────────
+// Individual scan dots are a few pixels each — genuinely hard to tap
+// precisely on a phone, per on-device feedback. This fits ONE big, easy
+// target to the accumulated point cloud instead: its XZ bounding box for
+// size/position, and a robust floor-height estimate (the median Y of
+// points sitting well below the camera — resistant to the noise any
+// single point carries) for where to put it vertically. That same height
+// estimate also replaces "trust one raycasted point's raw Y" for
+// placement itself, which is what was producing inconsistent heights.
+//
+// Two separate things below, deliberately decoupled:
+//  - floorY / hitTestViaFloorPlane(): the DATA, used for hit-testing.
+//    Keeps working post-placement (for the Recenter button) regardless of
+//    whether the visual is currently shown.
+//  - floorPlane (the THREE.Mesh): the VISUAL, a bounded, semi-transparent
+//    patch shown only pre-placement — hidden once placed so it doesn't
+//    linger as a glowing patch over the real floor.
+let floorPlane = null;
+let floorPlaneGeometry = null;
+let floorY = null; // null until enough floor-candidate points exist
+
+function buildFloorPlane() {
+  floorPlaneGeometry = new THREE.PlaneGeometry(1, 1);
+  const material = new THREE.MeshBasicMaterial({
+    color: 0x6ef,
+    transparent: true,
+    opacity: 0.16,
+    side: THREE.DoubleSide,
+    depthWrite: false,
+  });
+  const mesh = new THREE.Mesh(floorPlaneGeometry, material);
+  mesh.rotation.x = -Math.PI / 2;
+  mesh.visible = false;
+  return mesh;
+}
+
+function updateFloorPlane() {
+  if (accumulatedPoints.length < 8) {
+    floorY = null;
+    floorPlane.visible = false;
+    return;
+  }
+
+  const floorCandidates = [];
+  let minX = Infinity, maxX = -Infinity, minZ = Infinity, maxZ = -Infinity;
+  for (const p of accumulatedPoints) {
+    if (p.x < minX) minX = p.x;
+    if (p.x > maxX) maxX = p.x;
+    if (p.z < minZ) minZ = p.z;
+    if (p.z > maxZ) maxZ = p.z;
+    if (p.y < camera.position.y - 0.3) floorCandidates.push(p.y);
+  }
+
+  if (floorCandidates.length < 5) {
+    floorY = null;
+    floorPlane.visible = false;
+    return;
+  }
+  floorCandidates.sort((a, b) => a - b);
+  floorY = floorCandidates[Math.floor(floorCandidates.length / 2)]; // median
+
+  const width = Math.max(1 * SCALE, (maxX - minX) * 1.2);
+  const depth = Math.max(1 * SCALE, (maxZ - minZ) * 1.2);
+  floorPlane.scale.set(width, depth, 1);
+  floorPlane.position.set((minX + maxX) / 2, floorY, (minZ + maxZ) / 2);
+  floorPlane.visible = !placed;
+}
+
+// Intersects the mathematical floor plane directly (not the bounded,
+// sometimes-hidden mesh above) — an unbounded plane at the estimated
+// height, so a tap anywhere reasonable hits it, not just within whatever
+// area happened to already have scan dots in it.
+function hitTestViaFloorPlane(tapX, tapY) {
+  if (floorY === null) return null;
+  const raycaster = new THREE.Raycaster();
+  raycaster.setFromCamera(new THREE.Vector2(tapX * 2 - 1, -(tapY * 2 - 1)), camera);
+  const plane = new THREE.Plane(new THREE.Vector3(0, 1, 0), -floorY);
+  const point = new THREE.Vector3();
+  return raycaster.ray.intersectPlane(plane, point) ? point : null;
 }
 
 function buildJungle(group) {
@@ -359,40 +470,176 @@ function buildJungle(group) {
 }
 
 // ── Placement ────────────────────────────────────────────────────
-// Same XR8.XrController.recenter() pattern as ../../bitforest/tree-of-life —
-// confirmed working. See that file for why (no documented plane-detection
-// hit-test API for the open-source engine as of this writing).
-function placeDoorway() {
-  if (placed) return;
-  XR8.XrController.recenter();
+// Two hit-test strategies, tried in order, both keyed off the tapped
+// screen location (unlike the old approach, which ignored tap location
+// entirely and placed at a constant offset from wherever the camera
+// happened to be facing, assuming a fixed 1.4m camera-to-floor height —
+// the direct cause of "I tap the cloud and it floats in the air").
+//
+//  1. XR8.XrController.hitTest(x, y, ['FEATURE_POINT']) — 8th Wall's own
+//     documented raycast against its tracked feature points. On-device
+//     testing showed this doesn't actually place anything, and the docs
+//     describing it predate the Feb 2026 open-source migration, so it may
+//     not exist (or may differ) in this engine build — wrapped so a
+//     missing/throwing method can't silently swallow every tap.
+//  2. A manual THREE.Raycaster hit against the world-points cloud that's
+//     already confirmed rendering live on screen (buildWorldPointsCloud/
+//     updateWorldPointsCloud above). This is standard, well-documented
+//     three.js behavior with no dependency on any uncertain 8th Wall API,
+//     so it's the reliable fallback whenever (1) comes back empty.
+function anchorDoorAt(hit) {
+  // Face the doorway back toward wherever the hit was taken from, so the
+  // threshold opens toward the user — yaw only, ignoring any reported
+  // surface rotation, so the frame stays upright even on an angled or
+  // noisy point.
+  const dx = camera.position.x - hit.x;
+  const dz = camera.position.z - hit.z;
+  doorGroup.position.set(hit.x, hit.y, hit.z);
+  doorGroup.rotation.y = Math.atan2(dx, dz);
+}
 
+function hitTestViaXR8(tapX, tapY) {
+  try {
+    const results = XR8.XrController.hitTest?.(tapX, tapY, ['FEATURE_POINT']);
+    if (!results || !results.length) return null;
+    return results.reduce((best, r) => (!best || r.distance < best.distance ? r : best)).position;
+  } catch (err) {
+    console.error('[doorway-jungle] XR8.XrController.hitTest failed:', err);
+    return null;
+  }
+}
+
+// Bypasses worldPointsCloud.visible (false post-placement, for the
+// Recenter button's use) since THREE.Raycaster skips invisible objects —
+// flipped only for the instant of this synchronous call, so it never
+// actually flashes on screen.
+function hitTestViaPointCloud(tapX, tapY) {
+  const wasVisible = worldPointsCloud.visible;
+  worldPointsCloud.visible = true;
+  const raycaster = new THREE.Raycaster();
+  raycaster.params.Points = { threshold: 0.08 * SCALE };
+  raycaster.setFromCamera(new THREE.Vector2(tapX * 2 - 1, -(tapY * 2 - 1)), camera);
+  const hits = raycaster.intersectObject(worldPointsCloud);
+  worldPointsCloud.visible = wasVisible;
+  return hits.length ? hits[0].point : null;
+}
+
+function placeDoorway(tapX, tapY) {
+  if (placed) return;
+  XR8.XrController.recenter(); // clears accumulated drift right before anchoring
+  const hit = hitTestViaFloorPlane(tapX, tapY) || hitTestViaXR8(tapX, tapY) || hitTestViaPointCloud(tapX, tapY);
+  if (!hit) {
+    placeHint.textContent = 'No surface detected there — tap directly on a lit scan dot';
+    setTimeout(() => { if (!placed) placeHint.textContent = 'Tap to open the doorway'; }, 1500);
+    return;
+  }
+
+  anchorDoorAt(hit);
   doorGroup.visible = true;
   worldPointsCloud.visible = false;
   placed = true;
-  placeHint.classList.add('hidden');
   recenterBtn.classList.remove('hidden');
+  adjustPanel.classList.remove('hidden');
+
+  // Auto-placement (hit-test against a sparse, noisy point cloud) can't be
+  // pixel/millimeter-perfect — these are the manual correction tools for
+  // when it isn't. Briefly explain them, then get out of the way.
+  placeHint.textContent = 'Pinch to resize • ▲▼ to adjust height';
+  setTimeout(() => { if (placed) placeHint.classList.add('hidden'); }, 4000);
 }
 
-function onScreenTap() {
-  if (!placed && trackingReady) placeDoorway();
+function onScreenTap(e) {
+  if (placed || !trackingReady) return;
+  const point = e.touches ? e.touches[0] : e;
+  placeDoorway(point.clientX / window.innerWidth, point.clientY / window.innerHeight);
 }
 
-// XR8.XrController.recenter() resets the WHOLE tracked pose (position +
-// orientation) to wherever the camera currently is — including its
-// height. Since doorGroup sits at a fixed offset from that origin,
-// pressing this while holding the phone at a different height than the
-// original placement made the doorway visibly jump to a new floor
-// height each time, on top of just re-centering it horizontally. Capture
-// the camera's height in the OLD reference frame right before
-// recentering, then shift doorGroup by the same amount in the NEW frame
-// so its real-world height stays put — only position/facing re-center,
-// not the anchor height.
+// Re-center now re-runs the same real hit-test used for initial placement
+// (aimed at screen-center, i.e. wherever the phone is currently pointed),
+// rather than nudging the old fixed-offset position — it's a fresh,
+// accurate reading, not a correction applied on top of a stale one. Scale
+// is left untouched — this only corrects position/facing drift.
 recenterBtn.addEventListener('click', () => {
   if (!placed) return;
-  const yBeforeRecenter = camera.position.y;
   XR8.XrController.recenter();
-  doorGroup.position.y = GROUND_POS.y - yBeforeRecenter;
+  const hit = hitTestViaFloorPlane(0.5, 0.5) || hitTestViaXR8(0.5, 0.5) || hitTestViaPointCloud(0.5, 0.5);
+  if (hit) anchorDoorAt(hit);
 });
+
+// ── Manual correction: height nudge + pinch-to-scale ────────────────
+// Auto-placement can't always get height/size exactly right (sparse point
+// cloud, assumed-flat surfaces). These let the user fix it directly rather
+// than fight the scanner. Both act on doorGroup as a whole, scaling/
+// shifting everything it contains uniformly — content's local (0,0,0) is
+// the doorway threshold (see PIVOT ALIGNMENT above), so scaling pivots
+// around the point that was actually tapped to place it, not some
+// arbitrary corner.
+const HEIGHT_STEP = 0.03 * SCALE; // ~3cm per tap/repeat tick, in real meters
+const MIN_SCALE = 0.5;
+const MAX_SCALE = 2.0;
+let heightRepeatTimer = null;
+
+function nudgeHeight(dir) {
+  if (!placed) return;
+  doorGroup.position.y += dir * HEIGHT_STEP;
+}
+
+function bindHeightHold(btn, dir) {
+  if (!btn) return; // defensive: a throw here would abort the rest of this
+  // module's top-level execution, including the xrloaded listener at the
+  // bottom of the file — never let a missing element take down the whole
+  // page's ability to start AR at all.
+  const start = (e) => {
+    e.preventDefault();
+    nudgeHeight(dir);
+    clearInterval(heightRepeatTimer);
+    heightRepeatTimer = setInterval(() => nudgeHeight(dir), 150);
+  };
+  const stop = () => {
+    clearInterval(heightRepeatTimer);
+    heightRepeatTimer = null;
+  };
+  btn.addEventListener('touchstart', start, { passive: false });
+  btn.addEventListener('touchend', stop);
+  btn.addEventListener('touchcancel', stop);
+  btn.addEventListener('mousedown', start);
+  btn.addEventListener('mouseup', stop);
+  btn.addEventListener('mouseleave', stop);
+}
+
+bindHeightHold(heightUpBtn, 1);
+bindHeightHold(heightDownBtn, -1);
+
+function touchDistance(t0, t1) {
+  return Math.hypot(t0.clientX - t1.clientX, t0.clientY - t1.clientY);
+}
+
+// Tracks an in-progress two-finger pinch: the distance and doorGroup scale
+// at gesture start, so scale updates are relative to where the pinch began
+// rather than snapping to an absolute value each frame.
+let pinchState = null;
+
+function onCanvasTouchStart(e) {
+  if (!placed) {
+    if (e.touches.length === 1) onScreenTap(e);
+    return;
+  }
+  if (e.touches.length === 2) {
+    pinchState = { distance: touchDistance(e.touches[0], e.touches[1]), scale: doorGroup.scale.x };
+  }
+}
+
+function onCanvasTouchMove(e) {
+  e.preventDefault();
+  if (placed && pinchState && e.touches.length === 2) {
+    const ratio = touchDistance(e.touches[0], e.touches[1]) / pinchState.distance;
+    doorGroup.scale.setScalar(Math.min(MAX_SCALE, Math.max(MIN_SCALE, pinchState.scale * ratio)));
+  }
+}
+
+function onCanvasTouchEnd(e) {
+  if (e.touches.length < 2) pinchState = null;
+}
 
 // ── 8th Wall pipeline module ─────────────────────────────────────
 const doorwayJunglePipelineModule = () => ({
@@ -411,15 +658,16 @@ const doorwayJunglePipelineModule = () => ({
     dirLight.position.set(0.5, 1, 0.3);
     scene.add(dirLight);
 
-    // FROZEN CONTENT CONTRACT: doorGroup's transform is set exactly once
-    // here (and, optionally, once more if the user taps Recenter — see
-    // that handler below). Nothing in onUpdate() or anywhere else in this
-    // file ever touches it. SLAM keeps running for the entire session, but
-    // only to drive `camera`'s position/quaternion each frame (that update
-    // happens automatically inside XR8.Threejs.pipelineModule(), outside
-    // our code) — the placed content itself never moves on its own.
+    // FROZEN CONTENT CONTRACT: doorGroup's transform is only ever set by
+    // placeDoorway()/the Recenter handler below (both via real hit-test
+    // results) — nothing in onUpdate() or anywhere else in this file
+    // touches it. SLAM keeps running for the entire session, but only to
+    // drive `camera`'s position/quaternion each frame (that update happens
+    // automatically inside XR8.Threejs.pipelineModule(), outside our code)
+    // and to serve hitTest() — the placed content itself never moves on
+    // its own. Starts at the origin; irrelevant since it's invisible until
+    // a real hit-test position is set at placement.
     doorGroup = new THREE.Group();
-    doorGroup.position.copy(GROUND_POS);
     doorGroup.visible = false;
     scene.add(doorGroup);
 
@@ -450,6 +698,9 @@ const doorwayJunglePipelineModule = () => ({
     worldPointsCloud = buildWorldPointsCloud();
     scene.add(worldPointsCloud);
 
+    floorPlane = buildFloorPlane();
+    scene.add(floorPlane);
+
     camera.position.set(0, 1.4, 0);
     XR8.XrController.updateCameraProjectionMatrix({
       origin: camera.position,
@@ -458,24 +709,32 @@ const doorwayJunglePipelineModule = () => ({
 
     xrStartTime = performance.now();
     loadingScreen.classList.add('hidden');
-    placeHint.textContent = 'Scanning your space… hold steady';
+    placeHint.textContent = 'Slowly pan your phone around the room to scan it';
     placeHint.classList.remove('hidden');
 
-    canvas.addEventListener('touchmove', (e) => e.preventDefault());
-    canvas.addEventListener('touchstart', onScreenTap, { passive: true });
+    // Pre-placement: a single touch/click places the doorway. Post-
+    // placement: a two-finger touch drives pinch-to-scale instead (see the
+    // Manual correction section below) — onCanvasTouchStart branches on
+    // `placed` to route between the two.
+    canvas.addEventListener('touchstart', onCanvasTouchStart, { passive: false });
+    canvas.addEventListener('touchmove', onCanvasTouchMove, { passive: false });
+    canvas.addEventListener('touchend', onCanvasTouchEnd);
     canvas.addEventListener('click', onScreenTap);
   },
 
-  // Runs every tracked frame. Pre-placement, it feeds the live world-point
-  // cloud so the user sees real scan data while aiming. Post-placement it
-  // deliberately does nothing — see the FROZEN CONTENT CONTRACT comment
-  // above doorGroup's creation. SLAM tracking itself never stops; only our
-  // use of its per-frame reality data does.
+  // Runs every tracked frame, keeping the (invisible, post-placement)
+  // world-point buffer current for hitTestViaPointCloud(). Never touches
+  // doorGroup itself — see the FROZEN CONTENT CONTRACT comment above its
+  // creation. SLAM tracking itself never stops; only our use of its
+  // per-frame reality data changes after placement.
   onUpdate: ({ processCpuResult }) => {
-    if (!placed) {
-      updateWorldPointsCloud(processCpuResult?.reality?.worldPoints);
-      updateTrackingReadiness(processCpuResult?.reality);
-    }
+    // Keeps running post-placement too (buffers only, worldPointsCloud/
+    // floorPlane visuals stay hidden) — hitTestViaPointCloud()/
+    // hitTestViaFloorPlane() need fresh data for the Recenter button, not
+    // a stale snapshot from before you moved.
+    updateWorldPointsCloud(processCpuResult?.reality?.worldPoints);
+    updateFloorPlane();
+    if (!placed) updateTrackingReadiness(processCpuResult?.reality);
   },
 });
 

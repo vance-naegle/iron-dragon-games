@@ -6,7 +6,7 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-fullscreen">
   <title>Doorway Jungle — Iron Dragon Games</title>
-  <link rel="stylesheet" href="styles.css">
+  <link rel="stylesheet" href="styles.css?v=4">
 
   <!-- 8th Wall Engine (open source, no account/App Key needed as of the
        Feb 2026 platform retirement) + XRExtras + Landing Page fallback.
@@ -31,7 +31,7 @@
 
   <div id="loading-screen">
     <h1>Doorway Jungle</h1>
-    <p id="loading-msg">Point your camera at the ground to begin&hellip;</p>
+    <p id="loading-msg">Loading&hellip; once started, slowly pan your phone around the room to scan it</p>
     <p id="mobile-note">📱 Best experienced on a mobile device with a rear camera</p>
     <p id="start-credit">Developed by Iron Dragon Games &nbsp;·&nbsp; <a href="privacy.html" style="color:#4a7a99;text-decoration:none;font-size:inherit" target="_blank">Privacy Policy</a></p>
   </div>
@@ -40,6 +40,12 @@
 
   <button id="recenter-btn" class="hidden">&#8635; Re-center</button>
 
-  <script type="module" src="src/main.js"></script>
+  <div id="adjust-panel" class="hidden">
+    <button id="height-down-btn" title="Lower">&#9660;</button>
+    <span class="adjust-label">Height</span>
+    <button id="height-up-btn" title="Raise">&#9650;</button>
+  </div>
+
+  <script type="module" src="src/main.js?v=4"></script>
 </body>
 </html>
