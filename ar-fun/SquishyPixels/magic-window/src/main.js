@@ -10,14 +10,22 @@
 // ../../bitforest/marker-tree-of-life/src/main.js.
 //
 // The "only visible through the window" effect uses THREE.js clipping
-// planes (renderer.localClippingEnabled + material.clippingPlanes) rather
-// than Doorway Jungle's hider-material box-with-a-hole. That technique
-// exists to hide a room from every angle as you walk around AND through a
-// physical doorway; a wall poster is only ever viewed from its front
-// hemisphere, so flat clipping planes matching the poster's rectangle are
-// simpler and need no extra occluder geometry.
+// planes (renderer.localClippingEnabled + material.clippingPlanes), but
+// NOT fixed axis-aligned bounds — those describe a rectangular TUNNEL
+// through space, not a true perspective cone from the viewer's eye
+// through the window. At an oblique angle, a sightline can enter that
+// tunnel from the side without ever crossing the frame's on-screen
+// silhouette, revealing room content that should be hidden. A large
+// invisible "hider" occluder (Doorway Jungle's technique) was tried next,
+// but a fixed-size panel can only ever approximate a frustum — there's
+// always some angle it doesn't cover. The actual fix: recompute the 4
+// side clip planes every frame from the camera's CURRENT position through
+// each of the window's 4 corners (see updateClipPlanes()) — an exact
+// perspective frustum, matching what a real window would show from any
+// angle or distance, with no gap by construction.
 
 import * as THREE from 'three';
+import { MagicWindowAudio } from './audio.js';
 window.THREE = THREE; // XR8's pipeline modules expect a global THREE
 
 // Structured as a list (rather than one hardcoded target) so a second
@@ -35,6 +43,13 @@ let scene, camera, renderer;
 let anchorGroup = null; // repositioned each frame to whichever marker is detected
 let found = false;
 let foundName = null; // which marker is currently driving anchorGroup — reset smoothing on change
+
+// Set once inside buildRoom() when the tree is built, then read every
+// frame in onUpdate to animate it — see the "Beat-synced bounce" block
+// below updateFromDetectedImages().
+let tree = null;
+let treeBaseY = 0;
+let treeBounceAmplitude = 0;
 
 const markerHint = document.getElementById('marker-hint');
 const loadingScreen = document.getElementById('loading-screen');
@@ -55,30 +70,44 @@ const smoothedQuat = new THREE.Quaternion();
 let hasSmoothedPose = false;
 
 // ── Clipping planes ──────────────────────────────────────────────────
-// Defined per-frame in the CURRENT marker's own local frame: a flat
-// rectangle centered on the tracked image, lying in its XY plane, plus a
-// fifth plane just past local z=0 so nothing pokes out toward the viewer
-// past the poster's own surface (there's no real-world depth occlusion
-// here — without this, geometry that crept past z=0 would render as if
-// floating in front of the actual poster instead of behind it).
+// Four SIDE planes form a true perspective frustum from the camera's
+// CURRENT world position through each of the marker's 4 corners (also
+// transformed to world space each frame) — not fixed axis-aligned bounds.
+// A fifth plane, still a simple local-axis one, keeps content from poking
+// out toward the viewer past local z=0 (the poster's own surface) —
+// that's an unrelated, non-perspective constraint (there's no real-world
+// depth occlusion here — without it, geometry that crept past z=0 would
+// render as if floating in front of the actual poster instead of behind
+// it), so it doesn't need the frustum treatment.
 //
 // THREE.Material.clippingPlanes are always WORLD-space — they don't
-// automatically follow a moving/rotating object — so these get
-// re-transformed into worldClipPlanes every frame via
-// anchorGroup.matrixWorld once the marker's tracked pose is known.
+// automatically follow a moving/rotating object — so all of this is
+// recomputed into worldClipPlanes every frame from the marker's current
+// tracked pose (and the camera's current position, for the frustum part).
 const worldClipPlanes = [0, 1, 2, 3, 4].map(() => new THREE.Plane());
+const cornerTL = new THREE.Vector3();
+const cornerTR = new THREE.Vector3();
+const cornerBL = new THREE.Vector3();
+const cornerBR = new THREE.Vector3();
+const localZPlane = new THREE.Plane(new THREE.Vector3(0, 0, -1), 0.02); // keep local z <= ~0.02
 
 function updateClipPlanes(halfWidth, halfHeight) {
-  const local = [
-    new THREE.Plane(new THREE.Vector3(1, 0, 0), halfWidth),   // left edge
-    new THREE.Plane(new THREE.Vector3(-1, 0, 0), halfWidth),  // right edge
-    new THREE.Plane(new THREE.Vector3(0, 1, 0), halfHeight),  // bottom edge
-    new THREE.Plane(new THREE.Vector3(0, -1, 0), halfHeight), // top edge
-    new THREE.Plane(new THREE.Vector3(0, 0, -1), 0.02),       // keep local z <= ~0.02: don't poke toward the viewer
-  ];
-  for (let i = 0; i < local.length; i++) {
-    worldClipPlanes[i].copy(local[i]).applyMatrix4(anchorGroup.matrixWorld);
-  }
+  cornerTL.set(-halfWidth, halfHeight, 0).applyMatrix4(anchorGroup.matrixWorld);
+  cornerTR.set(halfWidth, halfHeight, 0).applyMatrix4(anchorGroup.matrixWorld);
+  cornerBL.set(-halfWidth, -halfHeight, 0).applyMatrix4(anchorGroup.matrixWorld);
+  cornerBR.set(halfWidth, -halfHeight, 0).applyMatrix4(anchorGroup.matrixWorld);
+  const eye = camera.position;
+
+  // Point order for setFromCoplanarPoints(a, b, c) matters — it determines
+  // which side of the plane is "kept". Verified against a worked numeric
+  // example (eye in front of a centered, unrotated window) so the window's
+  // interior ends up on the kept side for all four planes, not the
+  // exterior — getting this backwards would invert the whole effect.
+  worldClipPlanes[0].setFromCoplanarPoints(eye, cornerBL, cornerTL); // left
+  worldClipPlanes[1].setFromCoplanarPoints(eye, cornerTR, cornerBR); // right
+  worldClipPlanes[2].setFromCoplanarPoints(eye, cornerBR, cornerBL); // bottom
+  worldClipPlanes[3].setFromCoplanarPoints(eye, cornerTL, cornerTR); // top
+  worldClipPlanes[4].copy(localZPlane).applyMatrix4(anchorGroup.matrixWorld);
 }
 
 // Applied to every material inside the window scene.
@@ -115,6 +144,18 @@ function buildTree(treeHeight) {
   foliage.position.y = stumpHeight + foliageHeight / 2;
   group.add(foliage);
 
+  // Invisible, generously oversized tap target — same technique as
+  // ../../bitforest/marker-tree-of-life's gnat hitSphere. The tree's
+  // actual geometry (a thin trunk, a cone) is a small, fiddly target on a
+  // phone screen; onScreenTap() raycasts the whole group recursively, so
+  // this sphere alone is what makes tapping anywhere near the tree count.
+  const hitTarget = new THREE.Mesh(
+    new THREE.SphereGeometry(treeHeight * 0.55, 8, 8),
+    new THREE.MeshBasicMaterial({ visible: false })
+  );
+  hitTarget.position.y = treeHeight * 0.5;
+  group.add(hitTarget);
+
   return group;
 }
 
@@ -135,26 +176,26 @@ function buildTree(treeHeight) {
 // wall, where local Y already reads as real "up" — the same relationship
 // Doorway Jungle's room has to its doorway.
 //
-// Width/height are derived from the marker's own clip halfWidth/halfHeight
-// (not independent fixed constants) — a room bigger than the clip window
-// was the previous bug: walls sitting outside the clip bounds get
-// discarded entirely (not just cropped), which read as "transparent"
-// walls and a missing ceiling, and a floor left at y=0 (the marker's
-// vertical CENTER) rather than at -halfHeight (its bottom) put half the
-// window's height above an empty gap instead of showing the room.
-const ROOM_MARGIN = 0.94; // stay just inside the clip boundary — sitting exactly on it risks z-fighting/flicker against the clip plane itself
+// Width/height come in as the room's own opening half-extents — already
+// slightly inset from the marker's true edge by ROOM_MARGIN (see
+// onStart()) so the walls don't sit exactly on the clip boundary, which
+// risked z-fighting/flicker against the clip plane itself. buildFrame()
+// below is given that SAME inset value (not the raw marker edge), so the
+// frame's material — not an empty gap — is what covers the space between
+// the room's edge and the marker's true border.
+const ROOM_MARGIN = 0.94 * 1.05; // ~0.987 — 5% bigger per on-device feedback: the room (and, since buildFrame() is given this same value, the frame's hole) sits closer to the marker's true edge, tucking further behind the frame's wood border and shrinking the visible seam between them. Still just under 1.0 to keep some buffer against the clip plane itself.
 const ROOM_DEPTH = 1.3;
 const ROOM_FRONT_Z = -0.05; // just behind the poster plane
 
-function buildRoom(halfWidth, halfHeight) {
+function buildRoom(openingHalfWidth, openingHalfHeight) {
   const group = new THREE.Group();
   const wallMat = new THREE.MeshStandardMaterial({ color: 0x8a8a8a, roughness: 0.95 }); // grey
   const floorMat = new THREE.MeshStandardMaterial({ color: 0x2f6e3f, roughness: 0.9 }); // green
 
-  const roomWidth = halfWidth * 2 * ROOM_MARGIN;
-  const roomHeight = halfHeight * 2 * ROOM_MARGIN;
-  const floorY = -halfHeight * ROOM_MARGIN; // the window's bottom edge, not the marker's vertical center
-  const ceilingY = halfHeight * ROOM_MARGIN; // the window's top edge
+  const roomWidth = openingHalfWidth * 2;
+  const roomHeight = openingHalfHeight * 2;
+  const floorY = -openingHalfHeight; // the window's bottom edge, not the marker's vertical center
+  const ceilingY = openingHalfHeight; // the window's top edge
   const roomBackZ = ROOM_FRONT_Z - ROOM_DEPTH;
   const roomCenterZ = (ROOM_FRONT_Z + roomBackZ) / 2;
 
@@ -186,28 +227,42 @@ function buildRoom(halfWidth, halfHeight) {
   roomLight.position.set(0, ceilingY - 0.1, roomCenterZ);
   group.add(roomLight);
 
-  const tree = buildTree(roomHeight * 0.85); // fills most of the room's height without touching the ceiling
+  const treeHeight = roomHeight * 0.85; // fills most of the room's height without touching the ceiling
+  tree = buildTree(treeHeight); // module-level — onUpdate animates it to the music's beat
   tree.position.set(0, floorY, roomCenterZ);
   group.add(tree);
+  treeBaseY = floorY;
+  treeBounceAmplitude = treeHeight * 0.08; // ~8% of tree height — a lively but not absurd "boop", leaves ceiling clearance
 
   applyWindowClipping(group); // room + tree + light's position, NOT the frame — see buildFrame()
   return group;
 }
 
 // ── Frame ────────────────────────────────────────────────────────────
-// A picture-frame border sized exactly to the marker's own clip rectangle
-// (same halfWidth/halfHeight the clip planes use), so its inner edge
-// lines up perfectly with where the room content gets cut off. Sits
-// straddling local z=0 (the poster's own surface) so it reads as
+// The OUTER edge is sized off the room's own opening (openingHalfWidth/
+// openingHalfHeight — the same margined value buildRoom() uses) via
+// FRAME_THICKNESS, so it reads as sized to the physical poster and its
+// position doesn't shift if the room's size is ever retuned. The INNER
+// hole is deliberately smaller than that — by FRAME_HOLE_SHRINK — than the
+// room's actual edge, on-device feedback after matching them exactly
+// showed a persistent few-pixel seam of camera passthrough right at the
+// boundary. Shrinking the hole makes the wood lip physically overlap onto
+// the room's near edge, so solid frame material — not a knife-edge
+// coincidence of two boundaries — is what covers that seam.
+//
+// Sits straddling local z=0 (the poster's own surface) so it reads as
 // physically mounted on the wall, protruding slightly toward the viewer
 // like a real frame would. Deliberately NOT clipped — it's what marks the
 // boundary, not something the boundary should hide.
-const FRAME_THICKNESS = 0.06;
+const FRAME_THICKNESS = 0.09;
 const FRAME_DEPTH = 0.05;
+const FRAME_HOLE_SHRINK = 0.95; // hole is 5% smaller than the room's opening — the overlap that hides the seam
 
-function buildFrame(halfWidth, halfHeight) {
-  const outerW = halfWidth + FRAME_THICKNESS;
-  const outerH = halfHeight + FRAME_THICKNESS;
+function buildFrame(openingHalfWidth, openingHalfHeight) {
+  const outerW = openingHalfWidth + FRAME_THICKNESS;
+  const outerH = openingHalfHeight + FRAME_THICKNESS;
+  const holeHalfWidth = openingHalfWidth * FRAME_HOLE_SHRINK;
+  const holeHalfHeight = openingHalfHeight * FRAME_HOLE_SHRINK;
 
   const shape = new THREE.Shape();
   shape.moveTo(-outerW, -outerH);
@@ -217,11 +272,11 @@ function buildFrame(halfWidth, halfHeight) {
   shape.lineTo(-outerW, -outerH);
 
   const hole = new THREE.Path();
-  hole.moveTo(-halfWidth, -halfHeight);
-  hole.lineTo(halfWidth, -halfHeight);
-  hole.lineTo(halfWidth, halfHeight);
-  hole.lineTo(-halfWidth, halfHeight);
-  hole.lineTo(-halfWidth, -halfHeight);
+  hole.moveTo(-holeHalfWidth, -holeHalfHeight);
+  hole.lineTo(holeHalfWidth, -holeHalfHeight);
+  hole.lineTo(holeHalfWidth, holeHalfHeight);
+  hole.lineTo(-holeHalfWidth, holeHalfHeight);
+  hole.lineTo(-holeHalfWidth, -holeHalfHeight);
   shape.holes.push(hole);
 
   const geometry = new THREE.ExtrudeGeometry(shape, { depth: FRAME_DEPTH, bevelEnabled: false });
@@ -229,6 +284,45 @@ function buildFrame(halfWidth, halfHeight) {
   const frame = new THREE.Mesh(geometry, material);
   frame.position.z = -FRAME_DEPTH / 2; // straddles z=0 evenly
   return frame;
+}
+
+// ── Tap-to-trigger ───────────────────────────────────────────────────
+// Same raycast pattern as ../../bitforest/marker-tree-of-life's
+// tap-to-kill-gnats. Toggles play/pause each tap (via MagicWindowAudio.
+// isPlaying()) rather than only ever starting — losing tracking still
+// force-stops it independently (see updateFromDetectedImages()), so a
+// re-found marker always starts paused again, needing a fresh tap. Only
+// live while a marker is actually tracked — the tree mesh still
+// technically exists in the scene graph (just hidden via
+// anchorGroup.visible) when not found, and would otherwise still be a
+// valid raycast target.
+const tapRaycaster = new THREE.Raycaster();
+function tapCoordsToNdc(x, y) {
+  return new THREE.Vector2((x / window.innerWidth) * 2 - 1, -(y / window.innerHeight) * 2 + 1);
+}
+
+// A single physical tap fires BOTH 'touchstart' (immediately) and a
+// synthetic 'click' (~300ms later) on mobile browsers — both are
+// registered below so the tree responds instantly to touch while still
+// working with a mouse in desktop testing. Without this guard, that one
+// tap toggled play/pause twice in a row (on, then immediately back off),
+// which read as "it needs a tap-and-hold" / "on and off with one tap".
+const TAP_DEBOUNCE_MS = 500;
+let lastTapHandledAt = -Infinity;
+
+function onScreenTap(e) {
+  if (!found || !tree) return;
+  const now = performance.now();
+  if (now - lastTapHandledAt < TAP_DEBOUNCE_MS) return;
+
+  const touch = e.touches ? e.touches[0] : e;
+  tapRaycaster.setFromCamera(tapCoordsToNdc(touch.clientX, touch.clientY), camera);
+  if (tapRaycaster.intersectObject(tree, true).length > 0) {
+    lastTapHandledAt = now;
+    MagicWindowAudio.resume(); // this tap IS the user gesture — the most reliable possible place to unlock the AudioContext
+    if (MagicWindowAudio.isPlaying()) MagicWindowAudio.stop();
+    else MagicWindowAudio.start();
+  }
 }
 
 // ── Image target tracking ─────────────────────────────────────────
@@ -265,8 +359,8 @@ function updateFromDetectedImages(detectedImages) {
     // the "window" past the poster's real edges — content would spill
     // onto the surrounding wall instead of staying inside the print.
     // "Does content look big enough" is controlled separately, by how
-    // large the tree/scene geometry is built in marker-local units (see
-    // buildTestTree()) — not by scaling the anchor.
+    // large the room/tree geometry is built in marker-local units (see
+    // buildRoom()/buildTree()) — not by scaling the anchor.
     if (typeof detection.scale === 'number') anchorGroup.scale.setScalar(detection.scale);
     anchorGroup.updateMatrixWorld(true); // force-refresh before reading it below — not automatic until the renderer's own traversal
     updateClipPlanes(dims.halfWidth, dims.halfHeight);
@@ -275,13 +369,21 @@ function updateFromDetectedImages(detectedImages) {
       found = true;
       anchorGroup.visible = true;
       markerHint.classList.add('hidden');
+      // Audio/bounce no longer auto-start here — see onScreenTap(): tapping
+      // the tree itself is what triggers MagicWindowAudio.start() now.
     }
+
+    // Beat-synced bounce — see audio.js's getBounceEnvelope() for why this
+    // stays locked to the beat regardless of frame rate. Applied every
+    // frame while visible, on top of the tree's fixed floor position.
+    if (tree) tree.position.y = treeBaseY + MagicWindowAudio.getBounceEnvelope() * treeBounceAmplitude;
   } else if (found) {
     found = false;
     foundName = null;
     hasSmoothedPose = false;
     anchorGroup.visible = false;
     markerHint.classList.remove('hidden');
+    MagicWindowAudio.stop();
   }
 }
 
@@ -306,11 +408,34 @@ const magicWindowPipelineModule = () => ({
     scene.add(anchorGroup);
 
     const dims = targetDimensions[TARGETS[0].name];
-    anchorGroup.add(buildRoom(dims.halfWidth, dims.halfHeight));
-    anchorGroup.add(buildFrame(dims.halfWidth, dims.halfHeight));
+    // The room's opening is inset slightly from the marker's true edge —
+    // see the ROOM_MARGIN comment above buildRoom(). buildFrame() is given
+    // this SAME value so its hole lines up exactly with the room's edge,
+    // not the raw (larger) marker edge.
+    const openingHalfWidth = dims.halfWidth * ROOM_MARGIN;
+    const openingHalfHeight = dims.halfHeight * ROOM_MARGIN;
+    anchorGroup.add(buildRoom(openingHalfWidth, openingHalfHeight));
+    anchorGroup.add(buildFrame(openingHalfWidth, openingHalfHeight));
 
     loadingScreen.classList.add('hidden');
     markerHint.classList.remove('hidden');
+
+    canvas.addEventListener('touchstart', onScreenTap, { passive: true });
+    canvas.addEventListener('click', onScreenTap);
+
+    // Browsers (iOS Safari especially) only unlock an AudioContext from
+    // within an actual user-gesture event handler. Tapping the tree
+    // itself (onScreenTap, above) already does this reliably, but that
+    // only fires once a marker is tracked — this is a fallback so the
+    // very first tap anywhere on the page (even before a marker's found)
+    // still gets the AudioContext unlocked ahead of time.
+    const unlockAudio = () => {
+      MagicWindowAudio.resume();
+      document.removeEventListener('touchstart', unlockAudio);
+      document.removeEventListener('click', unlockAudio);
+    };
+    document.addEventListener('touchstart', unlockAudio, { passive: true });
+    document.addEventListener('click', unlockAudio);
   },
 
   onUpdate: ({ processCpuResult }) => {
