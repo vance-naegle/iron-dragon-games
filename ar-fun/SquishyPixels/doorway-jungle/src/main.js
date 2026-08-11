@@ -30,6 +30,7 @@ const placeHint = document.getElementById('place-hint');
 const loadingScreen = document.getElementById('loading-screen');
 const recenterBtn = document.getElementById('recenter-btn');
 const adjustPanel = document.getElementById('adjust-panel');
+const debugReadout = document.getElementById('debug-readout');
 const heightUpBtn = document.getElementById('height-up-btn');
 const heightDownBtn = document.getElementById('height-down-btn');
 
@@ -371,7 +372,7 @@ function updateTrackingReadiness(reality) {
   const settled = performance.now() - xrStartTime >= MIN_STABILIZE_MS;
   const enoughPoints = latestWorldPointCount >= MIN_STABLE_POINTS;
   const wasReady = trackingReady;
-  trackingReady = settled && enoughPoints && floorY !== null && !isTrackingStatusBad(reality);
+  trackingReady = settled && enoughPoints && globalFloorY !== null && !isTrackingStatusBad(reality);
   if (trackingReady !== wasReady) {
     placeHint.textContent = trackingReady ? 'Tap to open the doorway' : 'Slowly pan your phone around the room to scan it';
   }
@@ -379,31 +380,37 @@ function updateTrackingReadiness(reality) {
 
 // ── Floor preview plane ─────────────────────────────────────────────
 // Individual scan dots are a few pixels each — genuinely hard to tap
-// precisely on a phone, per on-device feedback. This fits ONE big, easy
-// target to the accumulated point cloud instead: its XZ bounding box for
-// size/position, and a robust floor-height estimate (the median Y of
-// points sitting well below the camera — resistant to the noise any
-// single point carries) for where to put it vertically. That same height
-// estimate also replaces "trust one raycasted point's raw Y" for
-// placement itself, which is what was producing inconsistent heights.
+// precisely on a phone, per on-device feedback. v1 of this fit one big
+// plane to the ENTIRE room's accumulated points; on-device testing showed
+// that's exactly the problem — a room-wide median mixes in points from
+// furniture, walls-near-floor, whatever else happened to scan low, which
+// don't represent the height of the specific spot you're aiming at.
 //
-// Two separate things below, deliberately decoupled:
-//  - floorY / hitTestViaFloorPlane(): the DATA, used for hit-testing.
-//    Keeps working post-placement (for the Recenter button) regardless of
-//    whether the visual is currently shown.
-//  - floorPlane (the THREE.Mesh): the VISUAL, a bounded, semi-transparent
-//    patch shown only pre-placement — hidden once placed so it doesn't
-//    linger as a glowing patch over the real floor.
+// Now it's a small (~2ft square) region that follows wherever the camera
+// is currently looking, refined from ONLY the points near that spot:
+//  1. GLOBAL_FLOOR_Y: a room-wide median, kept only as a bootstrap value
+//     (to get a rough first guess of "where's the floor" before any local
+//     refinement exists) and as the readiness gate's "do we have any
+//     floor estimate at all yet" signal.
+//  2. localFloorHit(tapX, tapY): raycasts the given screen point against
+//     that bootstrap plane to find an approximate spot, then re-estimates
+//     height from only the accumulated points within LOCAL_RADIUS of it —
+//     this is what actually determines placement height now.
+// The small square mesh is purely the visual for (2), repositioned every
+// frame pre-placement to track screen-center (wherever you're aiming).
+const LOCAL_RADIUS = 0.3048; // meters (~1ft) — points farther than this from the aim point don't influence its height estimate
+const RETICLE_SIZE = 0.6096; // meters (2ft) — the visual square's edge length
+
 let floorPlane = null;
 let floorPlaneGeometry = null;
-let floorY = null; // null until enough floor-candidate points exist
+let globalFloorY = null; // null until enough floor-candidate points exist anywhere
 
 function buildFloorPlane() {
-  floorPlaneGeometry = new THREE.PlaneGeometry(1, 1);
+  floorPlaneGeometry = new THREE.PlaneGeometry(RETICLE_SIZE, RETICLE_SIZE);
   const material = new THREE.MeshBasicMaterial({
     color: 0x6ef,
     transparent: true,
-    opacity: 0.16,
+    opacity: 0.22,
     side: THREE.DoubleSide,
     depthWrite: false,
   });
@@ -413,49 +420,66 @@ function buildFloorPlane() {
   return mesh;
 }
 
-function updateFloorPlane() {
+function updateGlobalFloorY() {
   if (accumulatedPoints.length < 8) {
-    floorY = null;
-    floorPlane.visible = false;
+    globalFloorY = null;
     return;
   }
-
   const floorCandidates = [];
-  let minX = Infinity, maxX = -Infinity, minZ = Infinity, maxZ = -Infinity;
   for (const p of accumulatedPoints) {
-    if (p.x < minX) minX = p.x;
-    if (p.x > maxX) maxX = p.x;
-    if (p.z < minZ) minZ = p.z;
-    if (p.z > maxZ) maxZ = p.z;
     if (p.y < camera.position.y - 0.3) floorCandidates.push(p.y);
   }
-
   if (floorCandidates.length < 5) {
-    floorY = null;
-    floorPlane.visible = false;
+    globalFloorY = null;
     return;
   }
   floorCandidates.sort((a, b) => a - b);
-  floorY = floorCandidates[Math.floor(floorCandidates.length / 2)]; // median
-
-  const width = Math.max(1 * SCALE, (maxX - minX) * 1.2);
-  const depth = Math.max(1 * SCALE, (maxZ - minZ) * 1.2);
-  floorPlane.scale.set(width, depth, 1);
-  floorPlane.position.set((minX + maxX) / 2, floorY, (minZ + maxZ) / 2);
-  floorPlane.visible = !placed;
+  globalFloorY = floorCandidates[Math.floor(floorCandidates.length / 2)]; // median
 }
 
-// Intersects the mathematical floor plane directly (not the bounded,
-// sometimes-hidden mesh above) — an unbounded plane at the estimated
-// height, so a tap anywhere reasonable hits it, not just within whatever
-// area happened to already have scan dots in it.
-function hitTestViaFloorPlane(tapX, tapY) {
-  if (floorY === null) return null;
+// Raycasts (tapX, tapY) against the bootstrap plane to find an approximate
+// spot, then refines its height using only nearby accumulated points.
+// Falls back to the coarse (unrefined) point if too few local points exist
+// yet — still a real hit, just not locally corrected.
+function localFloorHit(tapX, tapY) {
+  if (globalFloorY === null) return null;
   const raycaster = new THREE.Raycaster();
   raycaster.setFromCamera(new THREE.Vector2(tapX * 2 - 1, -(tapY * 2 - 1)), camera);
-  const plane = new THREE.Plane(new THREE.Vector3(0, 1, 0), -floorY);
-  const point = new THREE.Vector3();
-  return raycaster.ray.intersectPlane(plane, point) ? point : null;
+  const bootstrapPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), -globalFloorY);
+  const approx = new THREE.Vector3();
+  if (!raycaster.ray.intersectPlane(bootstrapPlane, approx)) return null;
+
+  const r2 = LOCAL_RADIUS * LOCAL_RADIUS;
+  const localYs = [];
+  for (const p of accumulatedPoints) {
+    const dx = p.x - approx.x, dz = p.z - approx.z;
+    if (dx * dx + dz * dz > r2) continue;
+    if (p.y < camera.position.y - 0.3) localYs.push(p.y);
+  }
+  if (localYs.length < 3) return approx; // not enough local data — coarse estimate as-is
+
+  localYs.sort((a, b) => a - b);
+  approx.y = localYs[Math.floor(localYs.length / 2)]; // local median
+  return approx;
+}
+
+function updateFloorPlane() {
+  updateGlobalFloorY();
+  if (placed) {
+    floorPlane.visible = false;
+    return;
+  }
+  const reticle = localFloorHit(0.5, 0.5); // wherever the camera's currently aimed
+  if (!reticle) {
+    floorPlane.visible = false;
+    return;
+  }
+  floorPlane.position.copy(reticle);
+  floorPlane.visible = true;
+}
+
+function hitTestViaFloorPlane(tapX, tapY) {
+  return localFloorHit(tapX, tapY);
 }
 
 function buildJungle(group) {
@@ -496,6 +520,24 @@ function anchorDoorAt(hit) {
   const dz = camera.position.z - hit.z;
   doorGroup.position.set(hit.x, hit.y, hit.z);
   doorGroup.rotation.y = Math.atan2(dx, dz);
+}
+
+// ── Diagnostic readout ────────────────────────────────────────────
+// Answers "is this really a 7ft door by default, or is something scaling
+// it unexpectedly?" with a number instead of eyeballing it. Rendered
+// height = DOOR_HEIGHT * current pinch scale. If a tape measure (or a
+// real doorway alongside it) says the rendered size is wrong while scale
+// still reads 1.000x (untouched), the discrepancy is in 8th Wall's own
+// absolute-scale estimate, not in this file's math — and if you pinch
+// until it visually matches something known, the scale value it settles
+// on tells us how far off, and in which direction.
+function updateDebugReadout() {
+  const scale = doorGroup.scale.x;
+  const renderedM = DOOR_HEIGHT * scale;
+  debugReadout.textContent =
+    `expected: 7.00 ft (${DOOR_HEIGHT.toFixed(2)} m)\n` +
+    `scale:    ${scale.toFixed(3)}x\n` +
+    `rendered: ${(renderedM / 0.3048).toFixed(2)} ft (${renderedM.toFixed(2)} m)`;
 }
 
 function hitTestViaXR8(tapX, tapY) {
@@ -540,6 +582,7 @@ function placeDoorway(tapX, tapY) {
   placed = true;
   recenterBtn.classList.remove('hidden');
   adjustPanel.classList.remove('hidden');
+  debugReadout.classList.remove('hidden');
 
   // Auto-placement (hit-test against a sparse, noisy point cloud) can't be
   // pixel/millimeter-perfect — these are the manual correction tools for
@@ -735,6 +778,7 @@ const doorwayJunglePipelineModule = () => ({
     updateWorldPointsCloud(processCpuResult?.reality?.worldPoints);
     updateFloorPlane();
     if (!placed) updateTrackingReadiness(processCpuResult?.reality);
+    else updateDebugReadout();
   },
 });
 
