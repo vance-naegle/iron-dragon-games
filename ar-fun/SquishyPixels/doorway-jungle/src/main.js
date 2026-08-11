@@ -30,7 +30,6 @@ const placeHint = document.getElementById('place-hint');
 const loadingScreen = document.getElementById('loading-screen');
 const recenterBtn = document.getElementById('recenter-btn');
 const adjustPanel = document.getElementById('adjust-panel');
-const debugReadout = document.getElementById('debug-readout');
 const heightUpBtn = document.getElementById('height-up-btn');
 const heightDownBtn = document.getElementById('height-down-btn');
 
@@ -522,24 +521,6 @@ function anchorDoorAt(hit) {
   doorGroup.rotation.y = Math.atan2(dx, dz);
 }
 
-// ── Diagnostic readout ────────────────────────────────────────────
-// Answers "is this really a 7ft door by default, or is something scaling
-// it unexpectedly?" with a number instead of eyeballing it. Rendered
-// height = DOOR_HEIGHT * current pinch scale. If a tape measure (or a
-// real doorway alongside it) says the rendered size is wrong while scale
-// still reads 1.000x (untouched), the discrepancy is in 8th Wall's own
-// absolute-scale estimate, not in this file's math — and if you pinch
-// until it visually matches something known, the scale value it settles
-// on tells us how far off, and in which direction.
-function updateDebugReadout() {
-  const scale = doorGroup.scale.x;
-  const renderedM = DOOR_HEIGHT * scale;
-  debugReadout.textContent =
-    `expected: 7.00 ft (${DOOR_HEIGHT.toFixed(2)} m)\n` +
-    `scale:    ${scale.toFixed(3)}x\n` +
-    `rendered: ${(renderedM / 0.3048).toFixed(2)} ft (${renderedM.toFixed(2)} m)`;
-}
-
 function hitTestViaXR8(tapX, tapY) {
   try {
     const results = XR8.XrController.hitTest?.(tapX, tapY, ['FEATURE_POINT']);
@@ -582,7 +563,6 @@ function placeDoorway(tapX, tapY) {
   placed = true;
   recenterBtn.classList.remove('hidden');
   adjustPanel.classList.remove('hidden');
-  debugReadout.classList.remove('hidden');
 
   // Auto-placement (hit-test against a sparse, noisy point cloud) can't be
   // pixel/millimeter-perfect — these are the manual correction tools for
@@ -778,7 +758,6 @@ const doorwayJunglePipelineModule = () => ({
     updateWorldPointsCloud(processCpuResult?.reality?.worldPoints);
     updateFloorPlane();
     if (!placed) updateTrackingReadiness(processCpuResult?.reality);
-    else updateDebugReadout();
   },
 });
 
