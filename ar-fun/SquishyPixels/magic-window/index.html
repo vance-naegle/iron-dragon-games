@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-fullscreen">
+  <title>Magic Window — Iron Dragon Games</title>
+  <link rel="stylesheet" href="styles.css">
+
+  <!-- 8th Wall Engine (open source, no account/App Key needed as of the
+       Feb 2026 platform retirement) + XRExtras + Landing Page fallback.
+       Source: https://github.com/8thwall/threejs-world-effects-example -->
+  <script src="https://cdn.jsdelivr.net/npm/@8thwall/engine-binary@1/dist/xr.js" async crossorigin="anonymous" data-preload-chunks="slam"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@8thwall/xrextras@1/dist/xrextras.js" crossorigin="anonymous"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@8thwall/landing-page@1/dist/landing-page.js" crossorigin="anonymous"></script>
+
+  <!-- three.js as a native ES module via import map — no bundler needed.
+       (three.js dropped its plain <script> global build at r160.) -->
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+      "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+    }
+  }
+  </script>
+</head>
+<body>
+  <canvas id="camerafeed"></canvas>
+
+  <div id="loading-screen">
+    <h1>Magic Window</h1>
+    <p id="loading-msg">Point your camera at the marker image to begin&hellip;</p>
+    <p id="mobile-note">📱 Best experienced on a mobile device with a rear camera</p>
+    <p id="start-credit">Developed by Iron Dragon Games &nbsp;·&nbsp; <a href="privacy.html" style="color:#4a7a99;text-decoration:none;font-size:inherit" target="_blank">Privacy Policy</a></p>
+  </div>
+
+  <div id="marker-hint" class="hidden">
+    <div class="marker-preview-frame">
+      <img class="marker-preview marker-preview-rotated" src="image-targets/magic-window_thumbnail.jpg" alt="Marker to find">
+    </div>
+    <p>Point your camera at the marker</p>
+  </div>
+
+  <script type="module" src="src/main.js"></script>
+</body>
+</html>

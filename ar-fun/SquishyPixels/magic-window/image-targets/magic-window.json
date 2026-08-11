@@ -1,0 +1,23 @@
+{
+  "imagePath": "image-targets/magic-window_luminance.jpg",
+  "metadata": null,
+  "name": "magic-window",
+  "type": "PLANAR",
+  "properties": {
+    "left": 128,
+    "top": 0,
+    "width": 768,
+    "height": 1024,
+    "isRotated": true,
+    "originalWidth": 1024,
+    "originalHeight": 1024
+  },
+  "resources": {
+    "originalImage": "magic-window_original.jpg",
+    "croppedImage": "magic-window_cropped.jpg",
+    "thumbnailImage": "magic-window_thumbnail.jpg",
+    "luminanceImage": "magic-window_luminance.jpg"
+  },
+  "created": 1786465537116,
+  "updated": 1786465537116
+}
