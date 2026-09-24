@@ -1,11 +1,1 @@
-# ads.txt for games.irondragonstudios.com
-#
-# PLACEHOLDER — AdSense is not set up yet.
-# After AdSense approval, replace this comment block with the line AdSense
-# gives you (AdSense > Sites > ads.txt), in this format:
-#
-#   google.com, pub-XXXXXXXXXXXXXXXX, DIRECT, f08c47fec0942fa0
-#
-# Note: Google looks for ads.txt at the ROOT domain (irondragonstudios.com/ads.txt).
-# For a subdomain like this one, add a line "subdomain=games.irondragonstudios.com"
-# to the root file, or serve the same file from the root domain's host.
+google.com, pub-4113300038650065, DIRECT, f08c47fec0942fa0
