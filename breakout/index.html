@@ -24,7 +24,7 @@
           <button id="start-btn">PLAY</button>
           <p id="start-controls">Mouse · Arrow Keys · A/D to move &nbsp;·&nbsp; Click / Space / Tap to launch</p>
         </div>
-        <p id="start-credit">Developed by Iron Dragon Games &nbsp;·&nbsp; <a href="privacy.html" style="color:#4a7a99;text-decoration:none;font-size:inherit" target="_blank">Privacy Policy</a></p>
+        <p id="start-credit">Developed by Iron Dragon Games &nbsp;·&nbsp; <a href="how-to-play.html" style="color:#4a7a99;text-decoration:none;font-size:inherit" target="_blank">How to Play</a> &nbsp;·&nbsp; <a href="privacy.html" style="color:#4a7a99;text-decoration:none;font-size:inherit" target="_blank">Privacy Policy</a></p>
       </div>
 
       <!-- LEVEL COMPLETE MODAL -->
@@ -44,22 +44,11 @@
   <div id="ad-bottom" class="ad-slot"></div>
 
   <script>
+  // Placeholder ad slots — swap each for its AdSense <ins> unit once approved.
   (function(){
-    const ads = [
-      { id:'weyland',   name:'Weyland-Yutani',  tag:'Building Better Worlds',      symbol:'⬡' },
-      { id:'umbrella',  name:'Umbrella Corp',     tag:'Our Business Is Life Itself', symbol:'☂' },
-      { id:'cyberdyne', name:'Cyberdyne Systems', tag:'Shaping Tomorrow, Today',     symbol:'◈' },
-    ];
-    const slots = ['ad-left','ad-right','ad-top','ad-bottom','lc-ad'];
-    const shuffled = [...ads].sort(() => Math.random() - 0.5);
-    slots.forEach((id, i) => {
-      const ad = shuffled[i % shuffled.length];
+    ['ad-left','ad-right','ad-top','ad-bottom','lc-ad'].forEach(function(id, i){
       document.getElementById(id).innerHTML =
-        `<div class="ad-inner" data-co="${ad.id}">
-          <div class="ad-symbol">${ad.symbol}</div>
-          <div class="ad-name">${ad.name}</div>
-          <div class="ad-tag">${ad.tag}</div>
-        </div>`;
+        '<div class="ad-placeholder">Ad Here ' + (i + 1) + '</div>';
     });
   })();
   </script>

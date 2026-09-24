@@ -26,23 +26,10 @@ canvas{display:block;width:100%;height:100%;touch-action:none;-webkit-tap-highli
   #ad-right{padding-right:env(safe-area-inset-right)}
 }
 
-/* ── Ad inner ──────────────────────────────────────────────────────────────── */
-.ad-inner{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;padding:12px 8px;text-align:center;width:100%;height:100%}
-.ad-symbol{font-size:28px;line-height:1;opacity:.9}
-.ad-name{font-size:11px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;line-height:1.2}
-.ad-tag{font-size:9px;letter-spacing:.08em;text-transform:uppercase;opacity:.55;line-height:1.3}
+/* ── Ad placeholder ───────────────────────────────────────────── */
+.ad-placeholder{font-size:11px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:#4a7a99;text-align:center;padding:8px}
 
-[data-co="weyland"]  .ad-symbol,[data-co="weyland"]  .ad-name{color:#5bb8e8;text-shadow:0 0 10px rgba(91,184,232,.5)}
-[data-co="umbrella"] .ad-symbol,[data-co="umbrella"] .ad-name{color:#e84040;text-shadow:0 0 10px rgba(232,64,64,.5)}
-[data-co="cyberdyne"].ad-symbol,[data-co="cyberdyne"].ad-name{color:#e8a020;text-shadow:0 0 10px rgba(232,160,32,.5)}
-[data-co="weyland"]  .ad-tag{color:#5bb8e8}
-[data-co="umbrella"] .ad-tag{color:#e84040}
-[data-co="cyberdyne"].ad-tag{color:#e8a020}
 
-#ad-top .ad-inner,#ad-bottom .ad-inner{flex-direction:row;gap:10px;padding:0 16px}
-#ad-top .ad-symbol,#ad-bottom .ad-symbol{font-size:20px}
-#ad-top .ad-tag,#ad-bottom .ad-tag{display:none}
-#ad-top .ad-name,#ad-bottom .ad-name{font-size:10px}
 
 /* ── Fullscreen button ─────────────────────────────────────────────────────── */
 #fs-btn{position:absolute;bottom:10px;right:10px;z-index:30;background:rgba(6,20,39,0.72);border:1px solid rgba(102,238,255,0.28);color:rgba(102,238,255,0.65);font-size:15px;line-height:1;padding:6px 9px;border-radius:4px;cursor:pointer;transition:border-color .15s,color .15s;-webkit-tap-highlight-color:transparent}
