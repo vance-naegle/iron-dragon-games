@@ -67,3 +67,6 @@ footer a{color:#1e4060;text-decoration:none}
 footer a:hover{color:#6ef}
 .about-bio a{color:#6ef;text-decoration:none}
 .about-bio a:hover{text-decoration:underline}
+
+/* ADS_OFF — ad placeholders hidden while the AdSense review runs. Delete this rule to show the slots again. */
+.ad-wrap{display:none}

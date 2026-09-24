@@ -55,3 +55,6 @@ canvas{display:block;width:100%;height:100%;touch-action:none;-webkit-tap-highli
 #lc-continue:hover{background:#fff;transform:scale(1.05)}
 
 @media(max-width:480px){#lc-ad{height:86px}#level-complete-content{padding:14px}}
+
+/* ADS_OFF — ad placeholders hidden while the AdSense review runs. Delete this rule to show the slots again. */
+#ad-top,#ad-bottom,#ad-left,#ad-right,#lc-ad{display:none !important}

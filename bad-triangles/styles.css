@@ -197,3 +197,6 @@ canvas{display:block;width:100%;height:100%;touch-action:none;-webkit-tap-highli
 @media (pointer: coarse) and (orientation: portrait) {
   #rotate-overlay { display: flex; }
 }
+
+/* ADS_OFF — ad placeholders hidden while the AdSense review runs. Delete this rule to show the slots again. */
+#ad-top,#ad-bottom,#ad-left,#ad-right,#lc-ad{display:none !important}

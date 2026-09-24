@@ -69,11 +69,15 @@ Every new game added to the site **must** include all four of the following befo
 
 ---
 
+## Ad slots are currently hidden (`ADS_OFF`)
+
+While the AdSense review runs, all placeholder ad slots are hidden by a single CSS rule marked `ADS_OFF` at the end of `styles.css`, `blog/blog.css`, and each game's `styles.css`. The markup and placeholder scripts are still in the pages. To show or replace the slots (e.g. with real AdSense `<ins>` units after approval), search for `ADS_OFF` and delete that rule. New games and blog posts should keep including their slots as usual.
+
 ## Dev blog (`blog/`)
 
 Static HTML, no build step. `blog/blog.css` is shared; `blog/index.html` lists posts newest-first inside `<ul class="post-list">`.
 
-**Adding a post** (e.g. when the user pastes a text snippet): copy an existing post (`blog/windows-dpi-scaling-bug.html`) to `blog/<kebab-slug>.html`; set `<title>`, meta description, `<h1>`, and the `.meta` line (date · topics); turn the snippet into `<p>`/`<h2>`/`<ul>`/`<pre><code>` (light edit for clarity, keep the user's voice and never invent facts or anecdotes); then add a new `<li>` at the TOP of the list in `blog/index.html`. Every post carries exactly two ad slots (`<div class="ad-wrap"><div class="ad-slot">…`): one right after the `.lede` intro paragraph ("Ad Here 1") and one just before `<footer class="post-foot">` ("Ad Here 2") — copying an existing post keeps them; for posts longer than ~1200 words a third mid-post slot is OK. Aim for 400+ words of original text (thin content hurts AdSense review). Commit and push only when asked.
+**Adding a post** (e.g. when the user pastes a text snippet): copy an existing post (`blog/windows-dpi-scaling-bug.html`) to `blog/<kebab-slug>.html`; set `<title>`, meta description, `<h1>`, and the `.meta` line (date · topics); turn the snippet into `<p>`/`<h2>`/`<ul>`/`<pre><code>` (light edit for clarity, keep the user's voice and never invent facts or anecdotes); then add a new `<li>` at the TOP of the list in `blog/index.html`. Every post carries exactly two ad slots (`<div class="ad-wrap"><div class="ad-slot">…`): one right after the `.lede` intro paragraph ("Ad Here 1") and one just before `<footer class="post-foot">` ("Ad Here 2") — copying an existing post keeps them; for posts longer than ~1200 words a third mid-post slot is OK. Aim for roughly 500–800 words of original text; 300 is the floor for a short post (no official standard — under ~300 reads as thin, and padding hurts AdSense review too). Commit and push only when asked.
 
 ## Dev setup
 
