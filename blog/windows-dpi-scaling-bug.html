@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>The Windows Display-Scaling Bug That Made Our Bullets Immortal — Iron Dragon Games Dev Blog</title>
+  <meta name="description" content="A HTML5 canvas game bug that only appeared at 125% and 150% Windows display scaling, why canvas.width is the wrong number for game logic, and how we fixed it.">
+  <link rel="stylesheet" href="blog.css">
+</head>
+<body>
+  <canvas id="bg"></canvas>
+  <header class="site-head">
+    <a class="brand" href="../index.html">Iron Dragon Games</a>
+    <p class="tagline">Making games, because shouting into the void gets old</p>
+    <nav class="site-nav">
+      <a href="../index.html">Games</a>
+      <a href="index.html" class="on">Dev Blog</a>
+      <a href="../ar-fun/index.html">AR Fun</a>
+    </nav>
+  </header>
+  <div class="wrap">
+    <article class="panel">
+    <a class="back" href="index.html">&larr; All posts</a>
+    <h1>The Windows Display-Scaling Bug That Made Our Bullets Immortal</h1>
+    <p class="meta">September 24, 2026 &nbsp;·&nbsp; HTML5 canvas, JavaScript &nbsp;·&nbsp; Iron Dragon Games</p>
+
+    <p class="lede">In Bad Triangles, player bullets are supposed to disappear when they leave the right edge of the screen. On some Windows laptops they did not. They kept flying, invisible, forever. The cause was one wrong variable name, and the same mistake can bite any HTML5 canvas game.</p>
+
+    <h2>Two kinds of pixels</h2>
+    <p>A canvas has two sizes. There is the size on the page, measured in CSS pixels, and there is the size of the actual pixel buffer it draws into. On a normal 100% display they are equal. On a high-DPI screen, or a Windows laptop set to 125% or 150% scaling, the buffer has more pixels than the page shows. The ratio between them is <code>window.devicePixelRatio</code>.</p>
+    <p>To keep drawing crisp, you make the buffer bigger than the element and then scale the drawing context so your game code can keep thinking in CSS pixels:</p>
+    <pre><code>canvas.width  = vw * dpr;   // physical pixels
+canvas.height = vh * dpr;
+ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+// from here on, draw in logical (CSS) pixels</code></pre>
+    <p>Everything you draw is in logical units: <code>vw</code> and <code>vh</code>. But <code>canvas.width</code> and <code>canvas.height</code> are now physical units.</p>
+
+    <h2>The bug</h2>
+    <p>Our culling code, the check that removes bullets once they leave the screen, compared a bullet's x position (logical) against <code>canvas.width</code> (physical). At 100% scaling those are the same number, so everything worked. At 150% scaling <code>canvas.width</code> is one and a half times larger than the visible area, so a bullet had to travel half a screen farther offscreen before it was removed. The starfield used the same check, so stars also drifted past the edge. Nothing looked broken on the development machine, and the problem only showed up on other people's displays.</p>
+
+    <h2>The fix and the rule</h2>
+    <p>The fix was to use <code>vw</code> and <code>vh</code> everywhere in game logic and never read <code>canvas.width</code> or <code>canvas.height</code> outside the resize function. It is now a written rule in our project notes, and it is the first thing we check in every new game. We also test at 100%, 125% and 150% scaling before calling a game finished.</p>
+
+    <h2>Related trap: one resolution for every screen</h2>
+    <p>While fixing this we also moved all three games to a virtual resolution. Each game pretends the screen is 900 units wide and scales everything by <code>parentWidth / 900</code>, so a ship or a brick takes up the same fraction of the screen on a phone as on a desktop monitor. Mouse and touch coordinates get divided by that same scale before they reach the game.</p>
+
+    <h2>One more coordinate mistake</h2>
+    <p>Our games sit beside ad bars, so the canvas does not start at the left edge of the browser window. When we first wrote the Main Menu button on the pause screen, we converted a click to game coordinates with <code>clientX / gameScale</code>. That is only right when the canvas starts at x = 0. With a side bar present, every click landed 120 to 160 pixels off, and the button seemed dead. The correct conversion subtracts the canvas's own position first:</p>
+    <pre><code>const r = canvas.getBoundingClientRect();
+const x = (clientX - r.left) / gameScale;
+const y = (clientY - r.top)  / gameScale;</code></pre>
+
+    <h2>Takeaways</h2>
+    <ul>
+      <li>Pick one coordinate space for game logic (logical pixels) and never mix in physical ones.</li>
+      <li>Test at more than one display scale. Your development machine hides this class of bug.</li>
+      <li>Convert pointer positions relative to the canvas, not the window.</li>
+    </ul>
+    <p>You can see the result in <a href="../bad-triangles/index.html">Bad Triangles</a>, where bullets now leave the screen exactly when they should. There is also a <a href="../bad-triangles/how-to-play.html">how-to-play guide</a> if you want to try it.</p>
+
+    <footer class="post-foot">Written by the team at Iron Dragon Games. Questions or ideas? <a href="mailto:vance.naegle@gmail.com">Get in touch</a>. &nbsp;·&nbsp; <a href="../privacy.html">Privacy Policy</a></footer>
+    </article>
+    <div class="site-foot">&copy; 2026 Iron Dragon Games &nbsp;·&nbsp; <a href="index.html">Dev Blog</a> &nbsp;·&nbsp; <a href="../privacy.html">Privacy Policy</a> &nbsp;·&nbsp; <a href="mailto:vance.naegle@gmail.com">Contact</a></div>
+  </div>
+  <script src="stars.js"></script>
+</body>
+</html>

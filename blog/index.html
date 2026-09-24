@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Dev Blog — Iron Dragon Games</title>
+  <meta name="description" content="Development notes from Iron Dragon Games: building browser games and WebAR experiments, the bugs we hit, and what we learned.">
+  <link rel="stylesheet" href="blog.css">
+</head>
+<body>
+  <canvas id="bg"></canvas>
+  <header class="site-head">
+    <a class="brand" href="../index.html">Iron Dragon Games</a>
+    <p class="tagline">Making games, because shouting into the void gets old</p>
+    <nav class="site-nav">
+      <a href="../index.html">Games</a>
+      <a href="index.html" class="on">Dev Blog</a>
+      <a href="../ar-fun/index.html">AR Fun</a>
+    </nav>
+  </header>
+  <div class="wrap">
+    <div class="intro"><p class="lede">Iron Dragon Games is a one-person studio. This is where we write up what we build, the bugs that cost us an evening, and what we learned fixing them.</p></div>
+
+    <!-- POSTS: newest first. Each item is one <li>; add new posts at the top. -->
+    <ul class="post-list">
+      <li>
+        <div class="card-body">
+          <h2><a href="perspective-correct-ar-window.html">Turning a Poster into a Window: Perspective-Correct AR Clipping</a></h2>
+          <p class="meta">September 24, 2026</p>
+          <p>How the Magic Window WebAR effect works, why fixed clipping planes leak from the side, and the per-frame trick that fixed it.</p>
+          <a class="read-btn" href="perspective-correct-ar-window.html">Read Post</a>
+        </div>
+      </li>
+      <li>
+        <div class="card-body">
+          <h2><a href="windows-dpi-scaling-bug.html">The Windows Display-Scaling Bug That Made Our Bullets Immortal</a></h2>
+          <p class="meta">September 24, 2026</p>
+          <p>A canvas-game bug that only appeared at 125% and 150% scaling, and the coordinate rules that prevent it.</p>
+          <a class="read-btn" href="windows-dpi-scaling-bug.html">Read Post</a>
+        </div>
+      </li>
+    </ul>
+
+    <div class="site-foot">&copy; 2026 Iron Dragon Games &nbsp;·&nbsp; <a href="index.html">Dev Blog</a> &nbsp;·&nbsp; <a href="../privacy.html">Privacy Policy</a> &nbsp;·&nbsp; <a href="mailto:vance.naegle@gmail.com">Contact</a></div>
+  </div>
+  <script src="stars.js"></script>
+</body>
+</html>

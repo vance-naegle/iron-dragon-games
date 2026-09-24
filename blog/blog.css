@@ -1,0 +1,54 @@
+*{box-sizing:border-box}
+html,body{margin:0;padding:0;background:#061427;color:#cfe8ff;font-family:Segoe UI,Roboto,system-ui,Arial;min-height:100%}
+body{padding:0 16px 40px}
+
+/* ── Background starfield (matches landing page) ──────────────── */
+#bg{position:fixed;inset:0;z-index:-1;pointer-events:none;display:block}
+
+/* ── Site header (matches landing page) ───────────────────────── */
+.site-head{text-align:center;padding:44px 20px 26px}
+.brand{display:inline-block;font-size:clamp(28px,6vw,54px);font-weight:900;letter-spacing:.12em;text-transform:uppercase;color:#6ef;text-shadow:0 0 18px #6ef,0 0 48px #3af;line-height:1.1}
+.brand:hover{text-decoration:none}
+.tagline{margin:10px 0 18px;font-size:clamp(11px,2vw,15px);letter-spacing:.22em;text-transform:uppercase;color:#4a7a99}
+.site-nav a{display:inline-block;margin:0 5px 6px;font-size:12px;font-weight:700;letter-spacing:.16em;text-transform:uppercase;color:#4a7a99;border:1px solid #0e2a45;border-radius:20px;padding:6px 16px;transition:color .14s,border-color .14s,box-shadow .14s}
+.site-nav a:hover,.site-nav a.on{color:#6ef;border-color:rgba(102,238,255,.55);box-shadow:0 0 14px rgba(102,238,255,.2);text-decoration:none}
+
+/* ── Content panel: same glowing blue frame as the landing About box ── */
+.wrap{max-width:760px;margin:0 auto}
+.panel{padding:38px 42px 34px;background:rgba(6,20,39,.86);border:2px solid rgba(68,136,255,.8);border-radius:14px;box-shadow:0 0 28px rgba(68,136,255,.35),0 0 72px rgba(68,136,255,.12),inset 0 0 24px rgba(68,136,255,.06)}
+@media(max-width:600px){.panel{padding:24px 20px 22px}}
+
+h1{font-size:clamp(22px,4.4vw,34px);font-weight:900;letter-spacing:.06em;text-transform:uppercase;color:#6ef;text-shadow:0 0 14px rgba(102,238,255,.7);margin:0 0 10px;line-height:1.25}
+h2{font-size:15px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:#6ef;margin:34px 0 12px;padding-bottom:8px;border-bottom:1px solid rgba(68,136,255,.35)}
+p,li{font-size:16px;line-height:1.85;color:#a9c9dd;margin:0 0 15px}
+ul,ol{padding-left:22px;margin:0 0 15px}
+li::marker{color:#6ef}
+a{color:#6ef;text-decoration:none}
+a:hover{text-decoration:underline}
+strong{color:#dff3ff}
+code{background:#0a2136;border:1px solid #0e2a45;border-radius:3px;padding:1px 5px;font-size:.9em;color:#bfe8ff}
+pre{background:#040e1c;border:1px solid rgba(68,136,255,.35);border-left:3px solid #6ef;border-radius:6px;padding:14px 16px;overflow-x:auto;margin:0 0 18px}
+pre code{background:none;border:none;padding:0;font-size:13px;line-height:1.6}
+.meta{font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:#4a7a99;margin:0 0 28px}
+.lede{font-size:18px;color:#c7e2f2;border-left:3px solid #6ef;padding-left:16px}
+.back{display:inline-block;margin:0 0 18px;font-size:12px;letter-spacing:.1em;text-transform:uppercase;color:#4a7a99}
+.back:hover{color:#6ef;text-decoration:none}
+
+/* ── Blog index cards (match landing game cards) ──────────────── */
+.intro{text-align:center;max-width:600px;margin:0 auto 28px}
+.post-list{list-style:none;padding:0;margin:0}
+.post-list li{margin:0 0 18px;background:#081c30;border:1px solid #000;border-radius:12px;overflow:hidden;transition:transform .15s,box-shadow .15s}
+.post-list li:hover{transform:translateY(-4px);box-shadow:0 8px 32px rgba(102,238,255,.15)}
+.post-list .card-body{padding:22px 26px 24px;border-top:3px solid #6ef}
+.post-list h2{margin:0 0 6px;padding:0;border:none;font-size:18px;letter-spacing:.06em;text-transform:none;line-height:1.35}
+.post-list .meta{margin:0 0 12px}
+.post-list p{margin:0 0 14px;font-size:14px;color:#6a8fa8}
+.read-btn{display:inline-block;font-size:12px;font-weight:700;letter-spacing:.18em;text-transform:uppercase;color:#061427;background:#6ef;border-radius:5px;padding:9px 24px;box-shadow:0 0 14px rgba(102,238,255,.45);transition:background .14s,transform .1s,box-shadow .14s}
+.read-btn:hover{background:#fff;transform:scale(1.05);box-shadow:0 0 28px rgba(102,238,255,.8);text-decoration:none}
+
+/* ── Footer (matches landing page) ────────────────────────────── */
+.site-foot{text-align:center;margin-top:36px;padding:20px;font-size:11px;letter-spacing:.08em;color:#2a5878;border-top:1px solid #0a1d33}
+.site-foot a{color:#2a5878}
+.site-foot a:hover{color:#6ef;text-decoration:none}
+.post-foot{margin-top:38px;padding-top:16px;border-top:1px solid rgba(68,136,255,.35);font-size:13px;color:#4a7a99}
+.intro .lede{border:none;padding:0}

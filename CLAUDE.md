@@ -69,6 +69,12 @@ Every new game added to the site **must** include all four of the following befo
 
 ---
 
+## Dev blog (`blog/`)
+
+Static HTML, no build step. `blog/blog.css` is shared; `blog/index.html` lists posts newest-first inside `<ul class="post-list">`.
+
+**Adding a post** (e.g. when the user pastes a text snippet): copy an existing post (`blog/windows-dpi-scaling-bug.html`) to `blog/<kebab-slug>.html`; set `<title>`, meta description, `<h1>`, and the `.meta` line (date · topics); turn the snippet into `<p>`/`<h2>`/`<ul>`/`<pre><code>` (light edit for clarity, keep the user's voice and never invent facts or anecdotes); then add a new `<li>` at the TOP of the list in `blog/index.html`. Aim for 400+ words of original text (thin content hurts AdSense review). Commit and push only when asked.
+
 ## Dev setup
 
 - **Local server**: VS Code Live Server, port 5500

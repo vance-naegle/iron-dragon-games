@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Turning a Poster into a Window: Perspective-Correct AR Clipping — Iron Dragon Games Dev Blog</title>
+  <meta name="description" content="How we built the Magic Window WebAR effect, why fixed clipping planes leak at oblique angles, and the per-frame perspective clipping trick that fixed it.">
+  <link rel="stylesheet" href="blog.css">
+</head>
+<body>
+  <canvas id="bg"></canvas>
+  <header class="site-head">
+    <a class="brand" href="../index.html">Iron Dragon Games</a>
+    <p class="tagline">Making games, because shouting into the void gets old</p>
+    <nav class="site-nav">
+      <a href="../index.html">Games</a>
+      <a href="index.html" class="on">Dev Blog</a>
+      <a href="../ar-fun/index.html">AR Fun</a>
+    </nav>
+  </header>
+  <div class="wrap">
+    <article class="panel">
+    <a class="back" href="index.html">&larr; All posts</a>
+    <h1>Turning a Poster into a Window: Perspective-Correct AR Clipping</h1>
+    <p class="meta">September 24, 2026 &nbsp;·&nbsp; WebAR, three.js, 8th Wall &nbsp;·&nbsp; Iron Dragon Games</p>
+
+    <p class="lede">Point your phone at a printed poster and the poster becomes a window into a small 3D room that sits behind the paper. Move your phone and the view through the window shifts the way a real window would. That is the Magic Window experiment in our AR Fun section, and getting it to look right took more than we expected.</p>
+
+    <h2>The setup</h2>
+    <p>Magic Window is an image-target experience. The browser watches the camera feed for a known picture (the poster), and once it finds it, the engine reports the poster's position and rotation in 3D space every frame. We use the open-source 8th Wall engine for tracking and three.js for rendering, all running in a plain web page with nothing to install.</p>
+    <p>Tracking gives us a flat rectangle floating in the world. The trick is to make that rectangle behave like a hole. We place a 3D room behind the poster's plane and then hide everything that is not inside the rectangle's outline as seen from the camera.</p>
+
+    <h2>The obvious approach, and why it fails</h2>
+    <p>three.js supports clipping planes, which cut away any geometry on one side of an infinite plane. The natural first attempt is four planes fixed to the poster: one at the left edge, one at the right, one at the top and one at the bottom. Straight on, it looks perfect.</p>
+    <p>Step to the side and it falls apart. Those four planes describe a rectangular tunnel extending straight back from the poster. A real window does not work that way. What you can see through a window is a cone of sight lines starting at your eye and passing through the frame. Stand at an angle and a sight line can enter the tunnel through its side wall without ever crossing the frame's outline on screen, so you see room content in places where the paper should have been solid.</p>
+    <p>Covering the gap with a big invisible blocker panel, the trick we used in an earlier doorway experiment, only hides part of the problem. There is always some angle it does not cover.</p>
+
+    <h2>The fix: rebuild the planes every frame from the camera</h2>
+    <p>The correct clipping volume is a pyramid with its tip at the camera and its base on the poster's four corners. Each side of that pyramid is a plane defined by three points: the camera position and two adjacent corners of the poster. So on every frame we take the camera's current world position and each pair of corners and build four fresh planes from them.</p>
+    <pre><code>// once per frame, after the marker pose is updated
+plane.setFromCoplanarPoints(eye, cornerA, cornerB);</code></pre>
+    <p>Because the planes are derived from the eye itself, there is no angle at which a gap can appear. Point order matters: swap two corners and the plane faces the wrong way and inverts the whole effect. A quick sanity test is to check a point at the window's center (it must count as inside all four planes) and a point beyond each edge (it must be clipped by exactly the matching plane). A fifth, ordinary plane fixed to the poster's surface keeps room content from poking out toward the viewer.</p>
+
+    <h2>Smaller details that mattered</h2>
+    <ul>
+      <li><strong>Marker units.</strong> The tracking engine treats the larger dimension of the marker image as 1.0 unit and scales the other by the aspect ratio. Read the width and height from the generated target data and build the room from them instead of hard-coding one poster shape.</li>
+      <li><strong>Size the room from the marker.</strong> A room built to arbitrary dimensions gets discarded wherever it falls outside the clip window, which looks like missing walls. Also, local <code>y = 0</code> is the marker's vertical center, so the floor belongs at the bottom edge, not at zero.</li>
+      <li><strong>The seam.</strong> Even with everything sized correctly, a thin line of camera passthrough can flicker where the picture frame meets the room. Making the frame's inner opening about five percent smaller than the room's opening means solid frame material overlaps the room's edge and hides the seam.</li>
+      <li><strong>Pose smoothing.</strong> Single-camera pose estimation is noisy, so raw readings make the room jitter. Blending each new pose a quarter of the way from the previous one keeps it steady, as long as you reset the blend when tracking is reacquired so the room does not slide across the gap.</li>
+    </ul>
+
+    <h2>What we learned</h2>
+    <p>Each of these pieces looked fine in a desktop test and turned out wrong on a real phone, held at real angles, in real lighting. Perspective effects especially need to be tested from many viewpoints, not just head-on. The result is a small experiment, but the per-frame clipping idea works for any "look through a frame" effect, not just this poster.</p>
+    <p>You can try it yourself from the <a href="../ar-fun/index.html">AR Fun</a> section on a phone with a rear camera.</p>
+
+    <footer class="post-foot">Written by the team at Iron Dragon Games. Questions or ideas? <a href="mailto:vance.naegle@gmail.com">Get in touch</a>. &nbsp;·&nbsp; <a href="../privacy.html">Privacy Policy</a></footer>
+    </article>
+    <div class="site-foot">&copy; 2026 Iron Dragon Games &nbsp;·&nbsp; <a href="index.html">Dev Blog</a> &nbsp;·&nbsp; <a href="../privacy.html">Privacy Policy</a> &nbsp;·&nbsp; <a href="mailto:vance.naegle@gmail.com">Contact</a></div>
+  </div>
+  <script src="stars.js"></script>
+</body>
+</html>
