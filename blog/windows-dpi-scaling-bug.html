@@ -26,6 +26,10 @@
 
     <p class="lede">In Bad Triangles, player bullets are supposed to disappear when they leave the right edge of the screen. On some Windows laptops they did not. They kept flying, invisible, forever. The cause was one wrong variable name, and the same mistake can bite any HTML5 canvas game.</p>
 
+    <div class="ad-wrap">
+      <div class="ad-slot" aria-label="Advertisement"><div class="ad-placeholder">Ad Here 1</div></div>
+    </div>
+
     <h2>Two kinds of pixels</h2>
     <p>A canvas has two sizes. There is the size on the page, measured in CSS pixels, and there is the size of the actual pixel buffer it draws into. On a normal 100% display they are equal. On a high-DPI screen, or a Windows laptop set to 125% or 150% scaling, the buffer has more pixels than the page shows. The ratio between them is <code>window.devicePixelRatio</code>.</p>
     <p>To keep drawing crisp, you make the buffer bigger than the element and then scale the drawing context so your game code can keep thinking in CSS pixels:</p>
@@ -57,6 +61,10 @@ const y = (clientY - r.top)  / gameScale;</code></pre>
       <li>Convert pointer positions relative to the canvas, not the window.</li>
     </ul>
     <p>You can see the result in <a href="../bad-triangles/index.html">Bad Triangles</a>, where bullets now leave the screen exactly when they should. There is also a <a href="../bad-triangles/how-to-play.html">how-to-play guide</a> if you want to try it.</p>
+
+    <div class="ad-wrap">
+      <div class="ad-slot" aria-label="Advertisement"><div class="ad-placeholder">Ad Here 2</div></div>
+    </div>
 
     <footer class="post-foot">Written by the team at Iron Dragon Games. Questions or ideas? <a href="mailto:vance.naegle@gmail.com">Get in touch</a>. &nbsp;·&nbsp; <a href="../privacy.html">Privacy Policy</a></footer>
     </article>

@@ -26,6 +26,10 @@
 
     <p class="lede">Point your phone at a printed poster and the poster becomes a window into a small 3D room that sits behind the paper. Move your phone and the view through the window shifts the way a real window would. That is the Magic Window experiment in our AR Fun section, and getting it to look right took more than we expected.</p>
 
+    <div class="ad-wrap">
+      <div class="ad-slot" aria-label="Advertisement"><div class="ad-placeholder">Ad Here 1</div></div>
+    </div>
+
     <h2>The setup</h2>
     <p>Magic Window is an image-target experience. The browser watches the camera feed for a known picture (the poster), and once it finds it, the engine reports the poster's position and rotation in 3D space every frame. We use the open-source 8th Wall engine for tracking and three.js for rendering, all running in a plain web page with nothing to install.</p>
     <p>Tracking gives us a flat rectangle floating in the world. The trick is to make that rectangle behave like a hole. We place a 3D room behind the poster's plane and then hide everything that is not inside the rectangle's outline as seen from the camera.</p>
@@ -52,6 +56,10 @@ plane.setFromCoplanarPoints(eye, cornerA, cornerB);</code></pre>
     <h2>What we learned</h2>
     <p>Each of these pieces looked fine in a desktop test and turned out wrong on a real phone, held at real angles, in real lighting. Perspective effects especially need to be tested from many viewpoints, not just head-on. The result is a small experiment, but the per-frame clipping idea works for any "look through a frame" effect, not just this poster.</p>
     <p>You can try it yourself from the <a href="../ar-fun/index.html">AR Fun</a> section on a phone with a rear camera.</p>
+
+    <div class="ad-wrap">
+      <div class="ad-slot" aria-label="Advertisement"><div class="ad-placeholder">Ad Here 2</div></div>
+    </div>
 
     <footer class="post-foot">Written by the team at Iron Dragon Games. Questions or ideas? <a href="mailto:vance.naegle@gmail.com">Get in touch</a>. &nbsp;·&nbsp; <a href="../privacy.html">Privacy Policy</a></footer>
     </article>

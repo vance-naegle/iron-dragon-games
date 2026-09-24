@@ -40,7 +40,7 @@ Every new game added to the site **must** include all four of the following befo
 ### 2 — Placeholder ad slots
 - Copy the ad-slot HTML structure from `bad-triangles/index.html` exactly: `#ad-top`, `#ad-bottom`, `#ad-left`, `#ad-right`, plus `#lc-ad` inside any level-complete or interstitial modal.
 - Copy the ad-slot CSS from `bad-triangles/styles.css` (layout, sizing, media queries).
-- Copy the inline ad-shuffle script from `bad-triangles/index.html` — it randomly assigns the three fictional in-universe brands (Weyland-Yutani, Umbrella Corp, Cyberdyne Systems) to each slot on every load.
+- Copy the small inline placeholder script from `bad-triangles/index.html` — it fills each slot with an "Ad Here N" label (`.ad-placeholder`). Do NOT use fictional or real brand names in placeholder ads; the slots get swapped for AdSense `<ins>` units once the account is approved.
 
 ### 3 — Pause screen
 - A `gamePaused` boolean flag overlays any active game state.
@@ -73,7 +73,7 @@ Every new game added to the site **must** include all four of the following befo
 
 Static HTML, no build step. `blog/blog.css` is shared; `blog/index.html` lists posts newest-first inside `<ul class="post-list">`.
 
-**Adding a post** (e.g. when the user pastes a text snippet): copy an existing post (`blog/windows-dpi-scaling-bug.html`) to `blog/<kebab-slug>.html`; set `<title>`, meta description, `<h1>`, and the `.meta` line (date · topics); turn the snippet into `<p>`/`<h2>`/`<ul>`/`<pre><code>` (light edit for clarity, keep the user's voice and never invent facts or anecdotes); then add a new `<li>` at the TOP of the list in `blog/index.html`. Aim for 400+ words of original text (thin content hurts AdSense review). Commit and push only when asked.
+**Adding a post** (e.g. when the user pastes a text snippet): copy an existing post (`blog/windows-dpi-scaling-bug.html`) to `blog/<kebab-slug>.html`; set `<title>`, meta description, `<h1>`, and the `.meta` line (date · topics); turn the snippet into `<p>`/`<h2>`/`<ul>`/`<pre><code>` (light edit for clarity, keep the user's voice and never invent facts or anecdotes); then add a new `<li>` at the TOP of the list in `blog/index.html`. Every post carries exactly two ad slots (`<div class="ad-wrap"><div class="ad-slot">…`): one right after the `.lede` intro paragraph ("Ad Here 1") and one just before `<footer class="post-foot">` ("Ad Here 2") — copying an existing post keeps them; for posts longer than ~1200 words a third mid-post slot is OK. Aim for 400+ words of original text (thin content hurts AdSense review). Commit and push only when asked.
 
 ## Dev setup
 
