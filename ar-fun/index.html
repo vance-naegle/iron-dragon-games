@@ -11,6 +11,9 @@
     .wrap{max-width:680px;margin:0 auto}
     .back{display:inline-block;margin-bottom:48px;font-size:12px;letter-spacing:.1em;text-transform:uppercase;color:#4a7a99;border:1px solid #0e2a45;border-radius:4px;padding:6px 14px;text-decoration:none}
     .back:hover{color:#6ef;border-color:#6ef}
+    .site-nav{margin:0 0 40px}
+    .site-nav a{display:inline-block;margin:0 5px 6px;font-size:12px;font-weight:700;letter-spacing:.16em;text-transform:uppercase;color:#4a7a99;text-decoration:none;border:1px solid #0e2a45;border-radius:20px;padding:6px 16px;transition:color .14s,border-color .14s,box-shadow .14s}
+    .site-nav a:hover,.site-nav a.on{color:#6ef;border-color:rgba(102,238,255,.55);box-shadow:0 0 14px rgba(102,238,255,.2)}
     h1{margin:0 0 14px;font-size:clamp(32px,7vw,64px);font-weight:900;letter-spacing:.12em;text-transform:uppercase;color:#6ef;text-shadow:0 0 18px #6ef,0 0 48px #3af}
     .sub{margin:0 0 32px;font-size:clamp(13px,2.4vw,18px);letter-spacing:.28em;text-transform:uppercase;color:#4a7a99}
     p.intro{max-width:520px;font-size:14px;line-height:1.8;color:#7aaabf;margin:0 0 20px}
@@ -34,7 +37,11 @@
 </head>
 <body>
   <div class="wrap">
-    <a class="back" href="../index.html">← Back to Games</a>
+    <nav class="site-nav">
+      <a href="../index.html">Games</a>
+      <a href="../blog/index.html">Dev Blog</a>
+      <a href="index.html" class="on">AR Fun</a>
+    </nav>
     <h1>AR Fun</h1>
     <p class="sub">Augmented Reality Experiences</p>
     <p class="intro">Camera-based AR experiences from Iron Dragon Games, built with WebAR — no app download required. Organized into a few different series.</p>
