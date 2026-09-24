@@ -8,6 +8,9 @@ html,body{margin:0;padding:0;min-height:100%;background:#061427;color:#cfe8ff;fo
 header{text-align:center;padding:60px 20px 40px}
 header h1{margin:0 0 10px;font-size:clamp(32px,7vw,72px);font-weight:900;letter-spacing:.12em;text-transform:uppercase;color:#6ef;text-shadow:0 0 18px #6ef,0 0 48px #3af}
 .tagline{margin:0;font-size:clamp(11px,2vw,15px);letter-spacing:.22em;text-transform:uppercase;color:#4a7a99}
+.site-nav{margin-top:22px}
+.site-nav a{display:inline-block;margin:0 5px 6px;font-size:12px;font-weight:700;letter-spacing:.16em;text-transform:uppercase;color:#4a7a99;text-decoration:none;border:1px solid #0e2a45;border-radius:20px;padding:6px 16px;transition:color .14s,border-color .14s,box-shadow .14s}
+.site-nav a:hover,.site-nav a.on{color:#6ef;border-color:rgba(102,238,255,.55);box-shadow:0 0 14px rgba(102,238,255,.2)}
 
 /* ── Game grid ────────────────────────────────────────────────── */
 main{max-width:728px;margin:0 auto;padding:0 16px 60px}
