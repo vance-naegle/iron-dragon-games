@@ -18,7 +18,7 @@ main{max-width:728px;margin:0 auto;padding:0 16px 60px}
 @media(max-width:727px){.game-grid{grid-template-columns:repeat(2,1fr)}}
 @media(max-width:480px){.game-grid{grid-template-columns:1fr}}
 
-.game-card{background:#081c30;border:1px solid #000;border-radius:12px;overflow:hidden;transition:transform .15s,box-shadow .15s}
+.game-card{display:block;background:#081c30;border:1px solid #000;border-radius:12px;overflow:hidden;transition:transform .15s,box-shadow .15s;text-decoration:none;color:inherit;cursor:pointer}
 .game-card:hover{transform:translateY(-4px);box-shadow:0 8px 32px rgba(102,238,255,.15)}
 
 .game-thumb{height:180px;position:relative;overflow:hidden;background:#000}
