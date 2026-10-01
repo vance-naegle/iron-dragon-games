@@ -4,6 +4,14 @@ const canvas = document.getElementById('game');
 const ctx    = canvas.getContext('2d');
 let vw, vh;
 const VIRT_W = 900;
+// Zapper's formation/player layout (FORMATION_TOP, ALIEN_DROP_STEP, player.y = vh-60, etc.)
+// is tuned in absolute logical units, not vh-relative ones. Deriving vh purely from
+// sh/gameScale (width-only scaling) made vh shrink a lot on wide/short PC windows —
+// plenty of vertical room on a tall phone, barely any gap between the ship and the
+// first wave on a wide desktop browser. Flooring vh via a height-based scale too
+// (classic "contain" fit) guarantees a minimum amount of vertical play space on any
+// aspect ratio; only wide/short windows are affected since portrait stays width-bound.
+const VIRT_H_MIN = 760;
 let gameScale = 1;
 
 // ── Resize ─────────────────────────────────────────────────────────────────
@@ -11,9 +19,9 @@ function resize() {
   const dpr = window.devicePixelRatio || 1;
   const sw  = canvas.parentElement.clientWidth;
   const sh  = canvas.parentElement.clientHeight;
-  gameScale = sw / VIRT_W;
-  vw = VIRT_W;
-  vh = Math.round(sh / gameScale);
+  gameScale = Math.min(sw / VIRT_W, sh / VIRT_H_MIN);
+  vw = sw / gameScale;
+  vh = sh / gameScale;
   canvas.width  = Math.floor(sw * dpr);
   canvas.height = Math.floor(sh * dpr);
   canvas.style.width  = sw + 'px';
