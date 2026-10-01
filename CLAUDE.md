@@ -239,3 +239,14 @@ Placeholder "Ad Here N" boxes (no brand names), swapped for AdSense `<ins>` unit
 Layouts live as 7×10 `#`/`.` strings (`LAYOUT_*` near the top of `breakout/src/main.js`). `initBricks()` skips `.` cells entirely instead of creating a dead brick, so the existing circle-vs-brick-rect collision loop needed no changes to support non-rectangular shapes — a missing cell is just open space. Gaps between two *live* bricks are only `BRICK_GAP` (5px) — far narrower than the ball (16px across) — so the ball can never slip between adjacent bricks; only a fully-missing cell is passable. That also guarantees every brick stays reachable from some open cell (verify by hand when adding a layout — an all-sides-enclosed cell would soft-lock the level, since `levelcomplete` requires every brick dead).
 
 `LAYOUT_ORDER` cycles wall → inverted pyramid → lanes → diamond → pyramid → fortress as `level` increases (`layoutForLevel()` indexes it with modulo, so it repeats indefinitely); level 1 is always the classic wall. Brick positions are stored per-brick (`row`/`col` set in `initBricks()`) rather than derived from array index in `recalcBrickPositions()`, since skipped cells break the old `i → row,col` math — this matters on resize/DPI changes, not just at level start.
+
+## Breakout multiball
+
+`balls` is an array (not a single `ball`), so every physics/draw step (`update()`'s playing branch, `drawBalls()`) loops over it. Two sources add balls mid-level:
+
+- **Volley bonus**: a random target in `[3,5]` successful paddle rallies (`bonusBallTarget`, re-rolled by `resetVolleyTracking()` every time a ball is freshly served — new level, new life, or game start) earns one extra ball, once per serve (`bonusBallGiven` latch). `paddleHitStreak` counts a paddle hit from *any* ball in play, not per-ball.
+- **Burst bricks**: up to 3 random bricks per level are flagged `burst: true` by `assignBurstBricks()` (called at the end of `initBricks()`, so a new level gets a fresh random set) and drawn with a pulsing white outline. Destroying one fires 3 new balls fanned out from its center (`spawnBallBurst()`).
+
+Both funnel through `spawnExtraBall()`, capped at `MAX_BALLS` (10) as a safety net against runaway spawning (volley bonus + 3 bursts of 3 could otherwise stack up fast) — not a balance mechanic, just a guard rail.
+
+**Losing a ball only costs a life once every ball is gone.** The per-ball loop marks a ball `.dead` when it falls off the bottom instead of acting immediately; after the loop, dead balls are filtered out and a life is only lost if `balls.length === 0`. The per-ball loop iterates a snapshot (`balls.slice()`), not `balls` itself, so a ball spawned mid-frame (bonus/burst) renders immediately but doesn't move/collide until next frame — avoids partial-`dt` weirdness from iterating an array that's being pushed into.

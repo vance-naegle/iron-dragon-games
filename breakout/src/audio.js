@@ -108,6 +108,25 @@ const SoundFX = (() => {
     nsrc.start(t);
   }
 
+  // ── Bonus ball (volley-streak reward / brick-burst) ─────────────────────────
+  function playBonusBall() {
+    const c     = ac();
+    const t     = c.currentTime;
+    const notes = [523.25, 659.25, 783.99, 1046.5]; // C5 E5 G5 C6 — bright ascending chime
+    notes.forEach((freq, i) => {
+      const start = t + i * 0.055;
+      const osc = c.createOscillator();
+      const g   = c.createGain();
+      osc.type = 'triangle';
+      osc.frequency.value = freq;
+      g.gain.setValueAtTime(0, start);
+      g.gain.linearRampToValueAtTime(0.22, start + 0.012);
+      g.gain.exponentialRampToValueAtTime(0.001, start + 0.22);
+      osc.connect(g); g.connect(c.destination);
+      osc.start(start); osc.stop(start + 0.23);
+    });
+  }
+
   // ── Game over (speech) ───────────────────────────────────────────────────────
   function sayGameOver() {
     if (!window.speechSynthesis) return;
@@ -249,5 +268,5 @@ const SoundFX = (() => {
     });
   }
 
-  return { resume, playBrickHit, playPaddleHit, playMiss, sayGameOver, cancelSpeech, startMusic };
+  return { resume, playBrickHit, playPaddleHit, playMiss, playBonusBall, sayGameOver, cancelSpeech, startMusic };
 })();

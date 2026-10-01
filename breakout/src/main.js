@@ -23,7 +23,7 @@ function resize() {
   paddle.y = vh - 60;
   paddle.x = Math.max(0, Math.min(vw - paddle.w, paddle.x));
   if (bricks.length) recalcBrickPositions();
-  if (state === 'paused' && ball) snapBallToPaddle();
+  if (state === 'paused' && balls[0]) snapBallToPaddle(balls[0]);
 }
 
 function paddleWidth() { return Math.min(Math.max(vw * 0.14, 80), 130); }
@@ -48,13 +48,29 @@ let lives      = 3;
 let level      = 1;
 let bricks     = [];
 let particles  = [];
-let ball       = null;
+let balls      = [];
 let paddle     = { x: 0, y: 0, w: 0 };
 let scoreSaved  = false;
 let gamePaused  = false;
 let homeBtnRect = null;
 let pauseBtnRect = null;
 let deathTimer  = 0;
+
+// Bonus-ball tracking: a random target in [3,5] successful paddle rallies
+// (across every ball in play) earns one extra ball, once per serve. Reset
+// whenever a fresh ball is served (new level, new life, game start).
+const MAX_BALLS      = 10; // safety cap — volley bonus + up to 3 bursts of 3 could otherwise run away
+let paddleHitStreak   = 0;
+let bonusBallTarget   = 0;
+let bonusBallGiven    = false;
+
+function randInt(min, max) { return min + Math.floor(Math.random() * (max - min + 1)); }
+
+function resetVolleyTracking() {
+  paddleHitStreak = 0;
+  bonusBallTarget = randInt(3, 5);
+  bonusBallGiven  = false;
+}
 
 // ── High scores ────────────────────────────────────────────────────────────
 function getScores() {
@@ -170,26 +186,66 @@ function initBricks() {
         row:    r,
         col:    c,
         alive:  true,
+        burst:  false,
       });
     }
+  }
+  assignBurstBricks();
+}
+
+// Up to 3 random bricks per level are marked as a "burst" brick — breaking
+// one fires 3 new balls from its position (see spawnBallBurst). Picked
+// fresh every initBricks() call, so a new level gets a new random set.
+function assignBurstBricks() {
+  const pool  = bricks.slice();
+  const count = Math.min(3, pool.length);
+  for (let i = 0; i < count; i++) {
+    const idx = Math.floor(Math.random() * pool.length);
+    pool[idx].burst = true;
+    pool.splice(idx, 1);
   }
 }
 
 // ── Ball ───────────────────────────────────────────────────────────────────
 function ballSpeed() { return Math.min(300 + (level - 1) * 25, 540); }
 
-function snapBallToPaddle() {
-  if (!ball) ball = { vx: 0, vy: 0 };
-  ball.x = paddle.x + paddle.w / 2;
-  ball.y = paddle.y - BALL_R - 2;
+function snapBallToPaddle(b) {
+  b.x = paddle.x + paddle.w / 2;
+  b.y = paddle.y - BALL_R - 2;
 }
 
 function initBall() {
-  snapBallToPaddle();
+  const b = { x: 0, y: 0, vx: 0, vy: 0 };
+  balls = [b];
+  snapBallToPaddle(b);
   const sp    = ballSpeed();
   const angle = -Math.PI / 2 + (Math.random() - 0.5) * 0.6;
-  ball.vx = sp * Math.cos(angle);
-  ball.vy = sp * Math.sin(angle);
+  b.vx = sp * Math.cos(angle);
+  b.vy = sp * Math.sin(angle);
+  resetVolleyTracking();
+}
+
+// Adds a ball at (x,y) heading off at `angle` radians (0 = +x axis), unless
+// MAX_BALLS is already reached.
+function spawnExtraBall(x, y, angle) {
+  if (balls.length >= MAX_BALLS) return;
+  const sp = ballSpeed();
+  balls.push({ x, y, vx: sp * Math.cos(angle), vy: sp * Math.sin(angle) });
+}
+
+// Volley-streak reward: one extra ball, split off from the ball that just
+// completed the winning rally so it immediately joins play.
+function spawnBonusBall(from) {
+  const baseAngle = Math.atan2(from.vy, from.vx);
+  spawnExtraBall(from.x, from.y, baseAngle + (Math.random() < 0.5 ? -0.5 : 0.5));
+  SoundFX.playBonusBall();
+}
+
+// Breaking a "burst" brick (see assignBurstBricks) fires 3 new balls,
+// fanned out from straight up, from the brick's position.
+function spawnBallBurst(x, y) {
+  for (const off of [-0.55, 0, 0.55]) spawnExtraBall(x, y, -Math.PI / 2 + off);
+  SoundFX.playBonusBall();
 }
 
 // ── Game init ──────────────────────────────────────────────────────────────
@@ -333,7 +389,7 @@ function update(dt) {
   }
   paddle.x = Math.max(0, Math.min(vw - paddle.w, paddle.x));
 
-  if (state === 'paused') { snapBallToPaddle(); return; }
+  if (state === 'paused') { if (balls[0]) snapBallToPaddle(balls[0]); return; }
 
   if (state === 'dying') {
     deathTimer -= dt;
@@ -345,65 +401,85 @@ function update(dt) {
 
   if (state !== 'playing') return;
 
-  // Move ball
-  ball.x += ball.vx * dt;
-  ball.y += ball.vy * dt;
+  // Snapshot so a ball spawned mid-frame (bonus/burst) is drawn immediately
+  // but only starts moving/colliding from next frame, not mid-iteration.
+  for (const b of balls.slice()) {
+    // Move
+    b.x += b.vx * dt;
+    b.y += b.vy * dt;
 
-  // Wall collisions
-  if (ball.x - BALL_R < 0)  { ball.x = BALL_R;      ball.vx =  Math.abs(ball.vx); }
-  if (ball.x + BALL_R > vw) { ball.x = vw - BALL_R; ball.vx = -Math.abs(ball.vx); }
-  if (ball.y - BALL_R < 0)  { ball.y = BALL_R;       ball.vy =  Math.abs(ball.vy); }
+    // Wall collisions
+    if (b.x - BALL_R < 0)  { b.x = BALL_R;      b.vx =  Math.abs(b.vx); }
+    if (b.x + BALL_R > vw) { b.x = vw - BALL_R; b.vx = -Math.abs(b.vx); }
+    if (b.y - BALL_R < 0)  { b.y = BALL_R;      b.vy =  Math.abs(b.vy); }
 
-  // Paddle collision
-  if (ball.vy > 0 &&
-      ball.y + BALL_R >= paddle.y &&
-      ball.y - BALL_R <= paddle.y + PADDLE_H &&
-      ball.x + BALL_R >= paddle.x &&
-      ball.x - BALL_R <= paddle.x + paddle.w) {
-    ball.y = paddle.y - BALL_R;
-    const rel   = (ball.x - paddle.x) / paddle.w;           // 0..1
-    const angle = -Math.PI / 2 + (rel * 2 - 1) * (Math.PI * 0.28);
-    const sp    = Math.max(Math.hypot(ball.vx, ball.vy), ballSpeed());
-    ball.vx = sp * Math.cos(angle);
-    ball.vy = sp * Math.sin(angle);
-    if (ball.vy > 0) ball.vy = -ball.vy; // safety: always send up
-    SoundFX.playPaddleHit();
-  }
+    // Paddle collision
+    if (b.vy > 0 &&
+        b.y + BALL_R >= paddle.y &&
+        b.y - BALL_R <= paddle.y + PADDLE_H &&
+        b.x + BALL_R >= paddle.x &&
+        b.x - BALL_R <= paddle.x + paddle.w) {
+      b.y = paddle.y - BALL_R;
+      const rel   = (b.x - paddle.x) / paddle.w;           // 0..1
+      const angle = -Math.PI / 2 + (rel * 2 - 1) * (Math.PI * 0.28);
+      const sp    = Math.max(Math.hypot(b.vx, b.vy), ballSpeed());
+      b.vx = sp * Math.cos(angle);
+      b.vy = sp * Math.sin(angle);
+      if (b.vy > 0) b.vy = -b.vy; // safety: always send up
+      SoundFX.playPaddleHit();
 
-  // Fell off bottom
-  if (ball.y - BALL_R > vh) {
-    lives--;
-    if (lives <= 0) {
-      state = 'gameover';
-      if (!scoreSaved) { saveScore(score); scoreSaved = true; }
-      SoundFX.sayGameOver();
-    } else {
-      SoundFX.playMiss();
-      state = 'dying';
-      deathTimer = 1.8;
-    }
-    return;
-  }
-
-  // Brick collisions (first hit only reverses velocity)
-  let reflected = false;
-  for (const b of bricks) {
-    if (!b.alive) continue;
-    const cx = Math.max(b.x, Math.min(ball.x, b.x + b.w));
-    const cy = Math.max(b.y, Math.min(ball.y, b.y + b.h));
-    const dx = ball.x - cx, dy = ball.y - cy;
-    if (dx * dx + dy * dy < BALL_R * BALL_R) {
-      b.alive = false;
-      score  += b.points;
-      spawnParticles(ball.x, ball.y, b.color, 8);
-      SoundFX.playBrickHit(b.row);
-      if (!reflected) {
-        const ox = (BALL_R + b.w * 0.5) - Math.abs(ball.x - (b.x + b.w * 0.5));
-        const oy = (BALL_R + b.h * 0.5) - Math.abs(ball.y - (b.y + b.h * 0.5));
-        if (ox < oy) ball.vx = -ball.vx;
-        else         ball.vy = -ball.vy;
-        reflected = true;
+      // Bonus ball after a random 3–5 successful rallies this serve
+      // (counts a paddle hit from any ball currently in play).
+      paddleHitStreak++;
+      if (!bonusBallGiven && paddleHitStreak >= bonusBallTarget) {
+        bonusBallGiven = true;
+        spawnBonusBall(b);
       }
+    }
+
+    // Fell off bottom — losing one of several balls isn't a miss; only
+    // losing the last one costs a life (checked after this loop).
+    if (b.y - BALL_R > vh) { b.dead = true; continue; }
+
+    // Brick collisions (first hit only reverses this ball's velocity)
+    let reflected = false;
+    for (const brick of bricks) {
+      if (!brick.alive) continue;
+      const cx = Math.max(brick.x, Math.min(b.x, brick.x + brick.w));
+      const cy = Math.max(brick.y, Math.min(b.y, brick.y + brick.h));
+      const dx = b.x - cx, dy = b.y - cy;
+      if (dx * dx + dy * dy < BALL_R * BALL_R) {
+        brick.alive = false;
+        score += brick.points;
+        spawnParticles(b.x, b.y, brick.color, brick.burst ? 16 : 8);
+        SoundFX.playBrickHit(brick.row);
+        if (brick.burst) spawnBallBurst(brick.x + brick.w / 2, brick.y + brick.h / 2);
+        if (!reflected) {
+          const ox = (BALL_R + brick.w * 0.5) - Math.abs(b.x - (brick.x + brick.w * 0.5));
+          const oy = (BALL_R + brick.h * 0.5) - Math.abs(b.y - (brick.y + brick.h * 0.5));
+          if (ox < oy) b.vx = -b.vx;
+          else         b.vy = -b.vy;
+          reflected = true;
+        }
+      }
+    }
+  }
+
+  // Remove balls lost off the bottom; only lose a life once none remain.
+  if (balls.some(b => b.dead)) {
+    balls = balls.filter(b => !b.dead);
+    if (balls.length === 0) {
+      lives--;
+      if (lives <= 0) {
+        state = 'gameover';
+        if (!scoreSaved) { saveScore(score); scoreSaved = true; }
+        SoundFX.sayGameOver();
+      } else {
+        SoundFX.playMiss();
+        state = 'dying';
+        deathTimer = 1.8;
+      }
+      return;
     }
   }
 
@@ -438,6 +514,7 @@ function drawStars() {
 
 // ── Draw helpers ───────────────────────────────────────────────────────────
 function drawBricks() {
+  const t = performance.now() / 1000;
   for (const b of bricks) {
     if (!b.alive) continue;
     ctx.shadowColor = b.color;
@@ -447,17 +524,28 @@ function drawBricks() {
     ctx.shadowBlur  = 0;
     ctx.fillStyle   = 'rgba(255,255,255,0.18)';
     ctx.fillRect(b.x, b.y, b.w, 4);
+    // Burst bricks get a pulsing white outline so they stand out as special.
+    if (b.burst) {
+      const pulse = 0.5 + 0.4 * Math.sin(t * 5 + b.x * 0.05);
+      ctx.shadowColor = '#fff';
+      ctx.shadowBlur  = 8;
+      ctx.strokeStyle = `rgba(255,255,255,${pulse})`;
+      ctx.lineWidth   = 2;
+      ctx.strokeRect(b.x + 1.5, b.y + 1.5, b.w - 3, b.h - 3);
+      ctx.shadowBlur  = 0;
+    }
   }
 }
 
-function drawBall() {
-  if (!ball) return;
+function drawBalls() {
   ctx.shadowColor = '#aef';
   ctx.shadowBlur  = 20;
-  ctx.beginPath();
-  ctx.arc(ball.x, ball.y, BALL_R, 0, Math.PI * 2);
-  ctx.fillStyle = '#fff';
-  ctx.fill();
+  for (const b of balls) {
+    ctx.beginPath();
+    ctx.arc(b.x, b.y, BALL_R, 0, Math.PI * 2);
+    ctx.fillStyle = '#fff';
+    ctx.fill();
+  }
   ctx.shadowBlur = 0;
 }
 
@@ -494,6 +582,11 @@ function drawHUD() {
   ctx.fillStyle = '#6ef';
   ctx.textAlign = 'left';
   ctx.fillText('SCORE  ' + score, 16, 30);
+  if (balls.length > 1) {
+    ctx.font = '700 12px "Segoe UI",sans-serif';
+    ctx.fillText('×' + balls.length + '  BALLS', 16, 48);
+    ctx.font = '700 15px "Segoe UI",sans-serif';
+  }
   ctx.textAlign = 'center';
   ctx.fillText('LEVEL  ' + level, vw / 2, 30);
   for (let i = 0; i < lives; i++) {
@@ -615,7 +708,7 @@ function draw() {
   if (state === 'start') return;
   drawBricks();
   drawParticles();
-  drawBall();
+  drawBalls();
   drawPaddle();
   drawHUD();
   if (state === 'paused')   drawLaunchHint();
