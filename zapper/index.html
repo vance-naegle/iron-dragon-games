@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-fullscreen">
+  <title>Zapper — Iron Dragon Games</title>
+  <link rel="stylesheet" href="styles.css">
+  <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-4113300038650065" crossorigin="anonymous"></script>
+</head>
+<body>
+  <div id="ad-top" class="ad-slot"></div>
+  <div id="layout">
+    <div id="ad-left" class="ad-slot"></div>
+    <div id="game-wrapper">
+      <canvas id="game"></canvas>
+      <button id="fs-btn" title="Fullscreen">⛶</button>
+
+      <!-- START SCREEN -->
+      <div id="start-screen">
+        <div id="start-content">
+          <h1 id="start-title">ZAPPER</h1>
+          <p id="start-sub">Defend the line against the swarm</p>
+          <button id="start-btn">PLAY</button>
+          <p id="start-controls">Arrow Keys · A/D · Mouse to move &nbsp;·&nbsp; Auto-fire engaged</p>
+        </div>
+        <p id="start-credit">Developed by Iron Dragon Games &nbsp;·&nbsp; <a href="how-to-play.html" style="color:#4a7a99;text-decoration:none;font-size:inherit" target="_blank">How to Play</a> &nbsp;·&nbsp; <a href="privacy.html" style="color:#4a7a99;text-decoration:none;font-size:inherit" target="_blank">Privacy Policy</a></p>
+      </div>
+
+      <!-- LEVEL COMPLETE MODAL -->
+      <div id="level-complete" class="hidden">
+        <div id="level-complete-content">
+          <h2 id="lc-title">Wave 1 Cleared!</h2>
+          <p id="lc-sub">Ready for wave 2?</p>
+          <div id="lc-ad" class="ad-slot modal-ad"></div>
+          <div id="lc-actions">
+            <button id="lc-continue">Continue</button>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div id="ad-right" class="ad-slot"></div>
+  </div>
+  <div id="ad-bottom" class="ad-slot"></div>
+
+  <script>
+  // Placeholder ad slots — swap each for its AdSense <ins> unit once approved.
+  (function(){
+    ['ad-left','ad-right','ad-top','ad-bottom','lc-ad'].forEach(function(id, i){
+      document.getElementById(id).innerHTML =
+        '<div class="ad-placeholder">Ad Here ' + (i + 1) + '</div>';
+    });
+  })();
+  </script>
+
+  <script src="src/audio.js"></script>
+  <script src="src/main.js"></script>
+</body>
+</html>

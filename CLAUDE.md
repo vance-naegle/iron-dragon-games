@@ -250,3 +250,20 @@ Layouts live as 7×10 `#`/`.` strings (`LAYOUT_*` near the top of `breakout/src/
 Both funnel through `spawnExtraBall()`, capped at `MAX_BALLS` (10) as a safety net against runaway spawning (volley bonus + 3 bursts of 3 could otherwise stack up fast) — not a balance mechanic, just a guard rail.
 
 **Losing a ball only costs a life once every ball is gone.** The per-ball loop marks a ball `.dead` when it falls off the bottom instead of acting immediately; after the loop, dead balls are filtered out and a life is only lost if `balls.length === 0`. The per-ball loop iterates a snapshot (`balls.slice()`), not `balls` itself, so a ball spawned mid-frame (bonus/burst) renders immediately but doesn't move/collide until next frame — avoids partial-`dt` weirdness from iterating an array that's being pushed into.
+
+---
+
+## Zapper (new game, 2026-10-01)
+
+A galaga/space-invaders hybrid: `zapper/`, same file layout as the other games (`index.html`, `styles.css`, `privacy.html`, `how-to-play.html`, `src/main.js`, `src/audio.js`), `localStorage` key `zapper_scores`. No `#rotate-overlay` — like Breakout and Avoid (not Bad Triangles), it's vertically oriented (defender at bottom, swarm at top) so it works fine in portrait too; only side-scrollers force landscape on this site.
+
+**Design choices made without being asked, worth knowing about:**
+- **Auto-fire, steering-only controls.** The defender fires continuously at a fixed cooldown; there's no manual fire input at all (no fire key, no on-screen fire button). Movement is arrow keys/A-D, mouse-move, or touch-drag — all absolute positioning, same pattern as Breakout's paddle (`mouseX`). This was a deliberate simplification to avoid designing a touch fire-zone/button, not a literal reading of the request.
+- **No freeze-frame death state.** Unlike Breakout's `'dying'` state, getting hit here follows Avoid's model: `lives--`, then immediate respawn with `player.invincible` + `invTimer` (flickers, ignores further collisions) while the swarm keeps moving. There's no "serve the ball" equivalent to pause for.
+- **Swarm reaching the defender's line is an instant game over**, regardless of remaining lives (classic arcade rule) — see `gameOverReason` in `update()`/`drawGameOver()`.
+
+**Alien positions are never cached** — `alienPos(a)` derives each alien's current center point fresh every frame from `row`/`col` + the shared `formation.{x,y}` offset (or from the alien's own `x`/`y` fields while `diving`). This sidesteps the whole class of resize/stale-position bugs that Breakout's brick layouts had to be fixed for (see above) — there was never a cached value to go stale in the first place.
+
+**Formation march**: `formation.vx` is shared across all standing (non-diving) aliens; each frame checks the bounding box of *alive* columns against the walls (so a nearly-cleared formation still bounces off its own shrunken extent, not the original one), reverses `vx` and adds `ALIEN_DROP_STEP` to `formation.y` on contact, nudging `formation.x` back inside the wall pad so it doesn't double-bounce the same frame.
+
+**Diving bugs**: a random standing alien gets `diving: true`, captures the player's x at that instant as a fixed drift target (`diveVX`), and flies a drift-plus-sine-wobble path down past the defender's row. It fires one aimed shot partway through the dive, and either gets shot down (bonus points) or rams the player (kamikaze — costs a life, destroys the diver too) or simply passes `DIVE_RETURN_Y` unharmed, at which point `diving` flips back to `false` and it re-appears at its live formation-slot position next frame (a deliberate simplification — no return flight path, see comment in `update()`).
