@@ -26,11 +26,8 @@ main{max-width:728px;margin:0 auto;padding:0 16px 60px}
 
 .game-info{padding:20px 22px 24px}
 .game-info h2{margin:0 0 10px;font-size:18px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:#6ef}
-.game-info p{margin:0 0 18px;font-size:13px;line-height:1.7;color:#6a8fa8}
+.game-info p{margin:0;font-size:13px;line-height:1.7;color:#6a8fa8}
 
-.play-btn{display:inline-block;font-family:inherit;font-size:12px;font-weight:700;letter-spacing:.18em;text-transform:uppercase;color:#061427;background:#6ef;border-radius:5px;padding:10px 28px;text-decoration:none;transition:background .14s,transform .1s,box-shadow .14s;box-shadow:0 0 14px rgba(102,238,255,.45)}
-.play-btn:hover{background:#fff;transform:scale(1.05);box-shadow:0 0 28px rgba(102,238,255,.8)}
-.play-btn:active{transform:scale(0.97)}
 
 /* ── Breakout card thumbnail ──────────────────────────────────── */
 .breakout-thumb{display:flex;flex-direction:column;align-items:center;justify-content:flex-start;padding:16px 14px 12px;gap:0}
