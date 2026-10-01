@@ -58,9 +58,23 @@ pre code{background:none;border:none;padding:0;font-size:13px;line-height:1.6}
 /* ── Blog index cards (match landing game cards) ──────────────── */
 .intro{text-align:center;max-width:600px;margin:0 auto 28px}
 .post-list{list-style:none;padding:0;margin:0}
-.post-list li{margin:0 0 18px;background:#081c30;border:1px solid #000;border-radius:12px;overflow:hidden;transition:transform .15s,box-shadow .15s}
+.post-list li{position:relative;margin:0 0 18px;background:#081c30;border:1px solid #000;border-radius:12px;overflow:hidden;transition:transform .15s,box-shadow .15s}
 .post-list li:hover{transform:translateY(-4px);box-shadow:0 8px 32px rgba(102,238,255,.15)}
-.post-list .card-body{padding:22px 26px 24px;border-top:3px solid transparent;border-image:linear-gradient(90deg,#6ef 0%,#6ef 72%,#ffb020 72%,#ffb020 100%) 1}
+
+/* mini console rail: a condensed echo of the post panel's elbow rail (which sits on
+   the left there too), teasing the full-size treatment inside. Flush rectangle (no
+   radius of its own) so the li's own overflow:hidden clips it cleanly — no
+   corner-radius mismatch to chase. */
+.post-list li::after{
+  content:"";position:absolute;top:0;left:0;bottom:0;width:9px;
+  background:linear-gradient(to bottom,
+    #6ef 0%, #6ef 24%,
+    #3af 24%, #3af 48%,
+    #ffb020 48%, #ffb020 76%,
+    #6ef 76%, #6ef 100%);
+}
+
+.post-list .card-body{display:flex;flex-direction:column;align-items:flex-start;padding:22px 26px 24px 34px;border-top:3px solid transparent;border-image:linear-gradient(90deg,#6ef 0%,#6ef 72%,#ffb020 72%,#ffb020 100%) 1}
 .post-list h2{display:block;margin:0 0 6px;padding:0;font-family:inherit;font-size:18px;font-weight:700;letter-spacing:.06em;text-transform:none;line-height:1.35;color:#6ef}
 .post-list h2::before,.post-list h2::after{content:none}
 .post-list .meta{margin:0 0 12px}
