@@ -79,22 +79,88 @@ function brickW()      {
   return (vw - m * 2 - BRICK_GAP * (BRICK_COLS - 1)) / BRICK_COLS;
 }
 
+// Each layout is BRICK_ROWS strings of BRICK_COLS chars — '#' places a brick,
+// '.' leaves a void. initBricks() just skips '.' cells, so the existing
+// circle-vs-brick-rect collision loop needs no changes to support shapes:
+// a missing brick is simply open space. Gaps between two LIVE bricks are
+// only BRICK_GAP (5px) wide — far narrower than the ball (16px across) — so
+// the ball can never slip between adjacent bricks; only a fully-missing
+// cell is actually passable. That also guarantees every brick stays
+// reachable from some open cell, so a layout can never soft-lock a level.
+const LAYOUT_WALL = [
+  '##########',
+  '##########',
+  '##########',
+  '##########',
+  '##########',
+  '##########',
+  '##########',
+];
+const LAYOUT_INVERTED_PYRAMID = [
+  '##########',
+  '.########.',
+  '..######..',
+  '...####...',
+  '....##....',
+  '....##....',
+  '....##....',
+];
+const LAYOUT_PYRAMID = [
+  '....##....',
+  '....##....',
+  '....##....',
+  '...####...',
+  '..######..',
+  '.########.',
+  '##########',
+];
+const LAYOUT_DIAMOND = [
+  '....##....',
+  '..######..',
+  '.########.',
+  '##########',
+  '.########.',
+  '..######..',
+  '....##....',
+];
+const LAYOUT_LANES = [
+  '##########',
+  '.#.#.#.#.#',
+  '#.#.#.#.#.',
+  '.#.#.#.#.#',
+  '#.#.#.#.#.',
+  '.#.#.#.#.#',
+  '##########',
+];
+const LAYOUT_FORTRESS = [
+  '##########',
+  '#........#',
+  '#.##..##.#',
+  '#.#....#.#',
+  '#.######.#',
+  '#........#',
+  '##########',
+];
+// Level 1 is always the classic wall; after that, layouts cycle for variety.
+const LAYOUT_ORDER = [LAYOUT_WALL, LAYOUT_INVERTED_PYRAMID, LAYOUT_LANES, LAYOUT_DIAMOND, LAYOUT_PYRAMID, LAYOUT_FORTRESS];
+function layoutForLevel(lvl) { return LAYOUT_ORDER[(lvl - 1) % LAYOUT_ORDER.length]; }
+
 function recalcBrickPositions() {
   const m = brickMargin(), bw = brickW();
-  bricks.forEach((b, i) => {
-    const r = Math.floor(i / BRICK_COLS);
-    const c = i % BRICK_COLS;
-    b.x = m + c * (bw + BRICK_GAP);
-    b.y = BRICK_TOP + r * (BRICK_H + BRICK_GAP);
+  bricks.forEach(b => {
+    b.x = m + b.col * (bw + BRICK_GAP);
+    b.y = BRICK_TOP + b.row * (BRICK_H + BRICK_GAP);
     b.w = bw;
   });
 }
 
 function initBricks() {
   const m = brickMargin(), bw = brickW();
+  const layout = layoutForLevel(level);
   bricks = [];
   for (let r = 0; r < BRICK_ROWS; r++) {
     for (let c = 0; c < BRICK_COLS; c++) {
+      if (layout[r][c] !== '#') continue;
       bricks.push({
         x: m + c * (bw + BRICK_GAP),
         y: BRICK_TOP + r * (BRICK_H + BRICK_GAP),
@@ -102,6 +168,7 @@ function initBricks() {
         color:  ROW_COLORS[r],
         points: ROW_POINTS[r],
         row:    r,
+        col:    c,
         alive:  true,
       });
     }

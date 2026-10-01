@@ -219,13 +219,13 @@ Structure (top to bottom):
 7. Ad slot 3 — leaderboard (`#lp-ad-3`)
 8. `<footer>` — copyright + per-game privacy links
 
-Ad slots on the landing page use the same in-universe brand shuffle script as the games. Slot IDs are `lp-ad-1`, `lp-ad-2`, `lp-ad-3`. The `.ad-wrap` / `.ad-slot` / `.ad-inner` / `.ad-label` CSS classes are defined in `styles.css` alongside the brand colour rules (`[data-co="weyland"]` etc.).
+Ad slots on the landing page are "Ad Here N" placeholders (currently hidden via `ADS_OFF`, see above). Slot IDs are `lp-ad-1`, `lp-ad-2`, `lp-ad-3`. The `.ad-wrap` / `.ad-slot` / `.ad-placeholder` CSS classes are defined in `styles.css`.
 
 The About section uses `border: 2px solid rgba(68,136,255,.8)` (blue, distinct from the cyan `#6ef` used on game cards) with `box-shadow` glow. Contact email: `vance.naegle@gmail.com`.
 
 ## Ad slots
 
-Fictional in-universe ads (Weyland-Yutani, Umbrella Corp, Cyberdyne Systems). Shuffled randomly each load. Slots: `#ad-left`, `#ad-right`, `#ad-top`, `#ad-bottom`, `#lc-ad` (level complete modal).
+Placeholder "Ad Here N" boxes (no brand names), swapped for AdSense `<ins>` units after approval. Slots: `#ad-left`, `#ad-right`, `#ad-top`, `#ad-bottom`, `#lc-ad` (level complete modal). AdSense publisher ID `pub-4113300038650065`; the snippet is in each page `<head>` and `ads.txt` is in the repo root.
 
 ## High scores
 
@@ -233,3 +233,9 @@ Fictional in-universe ads (Weyland-Yutani, Umbrella Corp, Cyberdyne Systems). Sh
 - Max 10 entries, sorted descending
 - `scoreSaved` flag ensures save happens once per game session
 - `drawHighScores._rank` static property tracks current run's rank for highlight
+
+## Breakout brick layouts
+
+Layouts live as 7×10 `#`/`.` strings (`LAYOUT_*` near the top of `breakout/src/main.js`). `initBricks()` skips `.` cells entirely instead of creating a dead brick, so the existing circle-vs-brick-rect collision loop needed no changes to support non-rectangular shapes — a missing cell is just open space. Gaps between two *live* bricks are only `BRICK_GAP` (5px) — far narrower than the ball (16px across) — so the ball can never slip between adjacent bricks; only a fully-missing cell is passable. That also guarantees every brick stays reachable from some open cell (verify by hand when adding a layout — an all-sides-enclosed cell would soft-lock the level, since `levelcomplete` requires every brick dead).
+
+`LAYOUT_ORDER` cycles wall → inverted pyramid → lanes → diamond → pyramid → fortress as `level` increases (`layoutForLevel()` indexes it with modulo, so it repeats indefinitely); level 1 is always the classic wall. Brick positions are stored per-brick (`row`/`col` set in `initBricks()`) rather than derived from array index in `recalcBrickPositions()`, since skipped cells break the old `i → row,col` math — this matters on resize/DPI changes, not just at level start.
